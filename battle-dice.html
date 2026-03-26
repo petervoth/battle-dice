@@ -2984,16 +2984,9 @@ function onlineStartGame(){
   const appliedMoves=new Set();
 
   db.ref("rooms/"+onlineRoom+"/moves").on("value",snap=>{
-    const moves=snap.val();
-    console.log('Firebase moves update, raw:', moves);
-    if(!moves) return;
-    const arr=Object.values(moves).sort((a,b)=>a.n-b.n);
-    console.log('Sorted moves:', arr.map(m=>({n:m.n,color:m.color,from:m.from,to:m.to})));
-    console.log('My color:', onlineMyColor, 'moveHistory.length:', moveHistory.length);
-    arr.forEach(m=>{
-      const shouldApply = m.color!==onlineMyColor && m.n>moveHistory.length && !appliedMoves.has(m.n);
-      console.log('Move',m.n,'from',m.color,'shouldApply:',shouldApply,'(color match:'+(m.color!==onlineMyColor)+', n check:'+(m.n>moveHistory.length)+', not applied:'+(!appliedMoves.has(m.n))+')');
-      if(shouldApply){
+    const moves=snap.val(); if(!moves) return;
+    Object.values(moves).sort((a,b)=>a.n-b.n).forEach(m=>{
+      if(m.color!==onlineMyColor&&m.n>moveHistory.length&&!appliedMoves.has(m.n)){
         appliedMoves.add(m.n);
         applyOnlineMove(m);
       }
@@ -3018,10 +3011,8 @@ function applyOnlineMove(m){
     console.warn('applyOnlineMove: piece not found at',m.fr,m.fc,'for move',m.n);
     return;
   }
-  // Firebase may deserialize path array as an object with numeric keys — convert back to array
   const rawPath=m.path;
   const path=(Array.isArray(rawPath)?rawPath:Object.values(rawPath)).map(p=>({r:p.r,c:p.c}));
-  console.log('Applying move',m.n,'path length:',path.length,'piece at:',m.fr,m.fc,'target:',m.tr,m.tc,'captured:',board[m.tr][m.tc]?.type);
   animatePieceMove(piece,path,()=>{
     const capturedPiece=board[m.tr][m.tc];
     if(capturedPiece) captured[piece.color].push(capturedPiece);
@@ -3034,19 +3025,24 @@ function applyOnlineMove(m){
     board[m.tr][m.tc]=piece;
     board[m.fr][m.fc]=null;
     moveHistory.push(m);
-    console.log('Move',m.n,'applied. capturedPiece:',capturedPiece?.type,capturedPiece?.color);
-    const isWhiteKingGone=capturedPiece&&capturedPiece.type==='king'&&capturedPiece.color==='white';
-    const isBlackKingGone=capturedPiece&&capturedPiece.type==='king'&&capturedPiece.color==='black';
-    if(isBlackKingGone){
+
+    // Trust the Firebase record for king captures — don't rely on local board state
+    // which may have drifted due to orientation differences
+    const kingCaptured = m.capture && m.capturedType==='king';
+    const kingColor = kingCaptured
+      ? (m.color==='white' ? 'black' : 'white')  // attacker's color tells us which king died
+      : null;
+
+    if(kingCaptured){
       render(); renderHistory();
-      endGame("White wins! The Black King has been captured.");
+      if(kingColor==='black'){
+        endGame("White wins! The Black King has been captured.");
+      } else {
+        endGame("Black wins! The White King has been captured.");
+      }
       return;
     }
-    if(isWhiteKingGone){
-      render(); renderHistory();
-      endGame("Black wins! The White King has been captured.");
-      return;
-    }
+
     turn=turn==="white"?"black":"white";
     selected=null; validMoves=[];
     render(); renderHistory();

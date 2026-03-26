@@ -3055,3 +3055,80 @@ function onlineLeaveGame(){
   if(ob) ob.style.display="none";
 }
 
+// ============================================================
+// INIT — show start modal on load, game starts only after mode is chosen
+// ============================================================
+function matchHistoryHeight(){
+  const boardOuter=document.getElementById('board-outer');
+  const historyPanel=document.getElementById('history-panel');
+  const playbackBar=document.getElementById('playback-bar');
+  if(boardOuter&&historyPanel){
+    if(document.body.classList.contains('replay-mode')&&playbackBar&&playbackBar.offsetHeight>0){
+      const totalHeight=boardOuter.offsetHeight+12+playbackBar.offsetHeight;
+      historyPanel.style.maxHeight=totalHeight+'px';
+      historyPanel.style.height=totalHeight+'px';
+    } else {
+      historyPanel.style.height='';
+      historyPanel.style.maxHeight=boardOuter.offsetHeight+'px';
+    }
+  }
+}
+showStartModal();
+matchHistoryHeight();
+window.addEventListener('resize', matchHistoryHeight);
+
+if(typeof ResizeObserver !== 'undefined'){
+  const ro = new ResizeObserver(()=>{
+    matchHistoryHeight();
+    if(replayIndex !== null){
+      const m = moveHistory[replayIndex];
+      if(m){
+        const boardEl = document.getElementById('board');
+        const cellW = boardEl.offsetWidth / 9;
+        const cellH = boardEl.offsetHeight / 9;
+        const boardOffX = boardEl.offsetLeft;
+        const boardOffY = boardEl.offsetTop;
+        drawReplayArrow(m, cellW, cellH, boardOffX, boardOffY);
+      }
+    }
+  });
+  const boardEl = document.getElementById('board');
+  if(boardEl) ro.observe(boardEl);
+}
+</script>
+
+<script>
+(function() {
+  function loadScript(src, onload) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = onload;
+    s.onerror = function() { window._firebaseError = 'Failed to load Firebase from CDN'; };
+    document.head.appendChild(s);
+  }
+
+  loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js', function() {
+    loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js', function() {
+      try {
+        var app = firebase.initializeApp({
+          apiKey:"AIzaSyDY1_x1erH0m2LmzTxaLvJ-dF91TphfKTc",
+          authDomain:"battle-dice-8df3b.firebaseapp.com",
+          databaseURL:"https://battle-dice-8df3b-default-rtdb.firebaseio.com",
+          projectId:"battle-dice-8df3b",
+          storageBucket:"battle-dice-8df3b.firebasestorage.app",
+          messagingSenderId:"572125800798",
+          appId:"1:572125800798:web:c90449f24ae7e17c3e47cf"
+        });
+        window._firebaseDB = firebase.database();
+        window._firebaseReady = true;
+        console.log('Firebase compat ready');
+      } catch(e) {
+        console.error('Firebase init error:', e);
+        window._firebaseError = e.message;
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

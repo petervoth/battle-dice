@@ -2979,10 +2979,17 @@ function onlineStartGame(){
   const ob=document.getElementById("online-badge");
   ob.textContent="Opponent connected"; ob.style.color="rgba(40,220,140,.9)"; ob.style.display="block";
   resetGame(false); turn="white";
+
+  // Track applied move numbers to prevent double-application from repeated Firebase events
+  const appliedMoves=new Set();
+
   db.ref("rooms/"+onlineRoom+"/moves").on("value",snap=>{
     const moves=snap.val(); if(!moves) return;
     Object.values(moves).sort((a,b)=>a.n-b.n).forEach(m=>{
-      if(m.color!==onlineMyColor&&m.n>moveHistory.length) applyOnlineMove(m);
+      if(m.color!==onlineMyColor&&m.n>moveHistory.length&&!appliedMoves.has(m.n)){
+        appliedMoves.add(m.n);
+        applyOnlineMove(m);
+      }
     });
   });
   const oppColor=onlineMyColor==="white"?"black":"white";
@@ -2999,7 +3006,11 @@ function onlineStartGame(){
 
 function applyOnlineMove(m){
   if(gameOver) return;
-  const piece=board[m.fr][m.fc]; if(!piece) return;
+  const piece=board[m.fr][m.fc];
+  if(!piece){
+    console.warn('applyOnlineMove: piece not found at',m.fr,m.fc,'for move',m.n);
+    return;
+  }
   const path=m.path.map(p=>({r:p.r,c:p.c}));
   animatePieceMove(piece,path,()=>{
     const capturedPiece=board[m.tr][m.tc];
@@ -3009,14 +3020,29 @@ function applyOnlineMove(m){
       const dr=path[i+1].r-path[i].r,dc=path[i+1].c-path[i].c;
       ori=rollDie(ori,dr===1?"S":dr===-1?"N":dc===1?"E":"W");
     }
-    piece.ori=ori; board[m.tr][m.tc]=piece; board[m.fr][m.fc]=null;
+    piece.ori=ori;
+    board[m.tr][m.tc]=piece;
+    board[m.fr][m.fc]=null;
     moveHistory.push(m);
-    let wk=false,bk=false;
-    for(let r=0;r<9;r++)for(let c=0;c<9;c++){const p=board[r][c];if(p&&p.type==="king"){if(p.color==="white")wk=true;else bk=true;}}
-    if(!bk){endGame("White wins! The Black King has been captured.");return;}
-    if(!wk){endGame("Black wins! The White King has been captured.");return;}
-    turn=turn==="white"?"black":"white"; selected=null;validMoves=[];
-    render();renderHistory();
+
+    // Check for king captures AFTER board mutation
+    const isWhiteKingGone=capturedPiece&&capturedPiece.type==='king'&&capturedPiece.color==='white';
+    const isBlackKingGone=capturedPiece&&capturedPiece.type==='king'&&capturedPiece.color==='black';
+
+    if(isBlackKingGone){
+      render(); renderHistory();
+      endGame("White wins! The Black King has been captured.");
+      return;
+    }
+    if(isWhiteKingGone){
+      render(); renderHistory();
+      endGame("Black wins! The White King has been captured.");
+      return;
+    }
+
+    turn=turn==="white"?"black":"white";
+    selected=null; validMoves=[];
+    render(); renderHistory();
     setStatus(turn===onlineMyColor?"":"Waiting for opponent…");
   });
 }

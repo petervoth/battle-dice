@@ -3018,7 +3018,10 @@ function applyOnlineMove(m){
     console.warn('applyOnlineMove: piece not found at',m.fr,m.fc,'for move',m.n);
     return;
   }
-  const path=m.path.map(p=>({r:p.r,c:p.c}));
+  // Firebase may deserialize path array as an object with numeric keys — convert back to array
+  const rawPath=m.path;
+  const path=(Array.isArray(rawPath)?rawPath:Object.values(rawPath)).map(p=>({r:p.r,c:p.c}));
+  console.log('Applying move',m.n,'path length:',path.length,'piece at:',m.fr,m.fc,'target:',m.tr,m.tc,'captured:',board[m.tr][m.tc]?.type);
   animatePieceMove(piece,path,()=>{
     const capturedPiece=board[m.tr][m.tc];
     if(capturedPiece) captured[piece.color].push(capturedPiece);
@@ -3031,11 +3034,9 @@ function applyOnlineMove(m){
     board[m.tr][m.tc]=piece;
     board[m.fr][m.fc]=null;
     moveHistory.push(m);
-
-    // Check for king captures AFTER board mutation
+    console.log('Move',m.n,'applied. capturedPiece:',capturedPiece?.type,capturedPiece?.color);
     const isWhiteKingGone=capturedPiece&&capturedPiece.type==='king'&&capturedPiece.color==='white';
     const isBlackKingGone=capturedPiece&&capturedPiece.type==='king'&&capturedPiece.color==='black';
-
     if(isBlackKingGone){
       render(); renderHistory();
       endGame("White wins! The Black King has been captured.");
@@ -3046,7 +3047,6 @@ function applyOnlineMove(m){
       endGame("Black wins! The White King has been captured.");
       return;
     }
-
     turn=turn==="white"?"black":"white";
     selected=null; validMoves=[];
     render(); renderHistory();

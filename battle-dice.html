@@ -3014,30 +3014,47 @@ function applyOnlineMove(m){
   const rawPath=m.path;
   const path=(Array.isArray(rawPath)?rawPath:Object.values(rawPath)).map(p=>({r:p.r,c:p.c}));
   animatePieceMove(piece,path,()=>{
-    const capturedPiece=board[m.tr][m.tc];
-    if(capturedPiece) captured[piece.color].push(capturedPiece);
 
-    // Use authoritative final orientation from Firebase — eliminates L-shape drift
-    if(m.finalOri){
-      piece.ori={top:m.finalOri.top, front:m.finalOri.front, right:m.finalOri.right};
-    } else {
-      // Fallback: recompute (for older moves without finalOri)
-      let ori={...piece.ori};
-      for(let i=0;i<path.length-1;i++){
-        const dr=path[i+1].r-path[i].r,dc=path[i+1].c-path[i].c;
-        ori=rollDie(ori,dr===1?"S":dr===-1?"N":dc===1?"E":"W");
+    if(m.boardSnapshot){
+      // Apply authoritative board state from attacker — eliminates all drift
+      const snap=Array.isArray(m.boardSnapshot)?m.boardSnapshot:Object.values(m.boardSnapshot);
+      // Clear board
+      for(let r=0;r<9;r++) for(let c=0;c<9;c++) board[r][c]=null;
+      // Place all pieces from snapshot
+      snap.forEach(p=>{
+        board[p.r][p.c]={
+          color:p.color, type:p.type,
+          ori:{top:p.top, front:p.front, right:p.right},
+          id:p.color+(p.type==='king'?'k':p.top)+'_'+p.r+'_'+p.c
+        };
+      });
+      // Update captured counts from what's missing vs starting pieces
+      const onBoard={white:0,black:0};
+      for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+        const p=board[r][c]; if(p) onBoard[p.color]++;
       }
-      piece.ori=ori;
+    } else {
+      // Fallback for moves without snapshot
+      const capturedPiece=board[m.tr][m.tc];
+      if(capturedPiece) captured[piece.color].push(capturedPiece);
+      if(m.finalOri) piece.ori={...m.finalOri};
+      else {
+        let ori={...piece.ori};
+        for(let i=0;i<path.length-1;i++){
+          const dr=path[i+1].r-path[i].r,dc=path[i+1].c-path[i].c;
+          ori=rollDie(ori,dr===1?"S":dr===-1?"N":dc===1?"E":"W");
+        }
+        piece.ori=ori;
+      }
+      board[m.tr][m.tc]=piece;
+      board[m.fr][m.fc]=null;
     }
 
-    board[m.tr][m.tc]=piece;
-    board[m.fr][m.fc]=null;
     moveHistory.push(m);
 
-    // Trust Firebase record for king captures — local board may drift
+    // Trust Firebase record for king captures
     const kingCaptured=m.capture&&m.capturedType==='king';
     if(kingCaptured){
-      // Use times from the winning move record so both players see the same stats
       if(m.playerTimeWhite!=null) playerTime.white=m.playerTimeWhite;
       if(m.playerTimeBlack!=null) playerTime.black=m.playerTimeBlack;
       render(); renderHistory();
@@ -3049,7 +3066,6 @@ function applyOnlineMove(m){
 
     turn=turn==="white"?"black":"white";
     selected=null; validMoves=[];
-    // Restart timer for the new active player
     stopTimer(); startTimer();
     render(); renderHistory();
     setStatus(turn===onlineMyColor?"":"Waiting for opponent…");
@@ -3059,6 +3075,19 @@ function applyOnlineMove(m){
 function publishOnlineMove(fr,fc,tr,tc,path,piece,capturedPiece){
   if(!onlineRoom||gameMode!=="online"||!window._firebaseDB) return;
   const lastMove=moveHistory[moveHistory.length-1];
+
+  // Build a complete snapshot of every piece position after this move
+  // This eliminates all board drift on the receiver's side
+  const boardSnapshot=[];
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    const p=board[r][c];
+    if(p) boardSnapshot.push({
+      r,c,
+      color:p.color, type:p.type,
+      top:p.ori.top, front:p.ori.front, right:p.ori.right
+    });
+  }
+
   window._firebaseDB.ref("rooms/"+onlineRoom+"/moves").push({
     n:lastMove.n, color:onlineMyColor, fr,fc,tr,tc,
     path:path.map(p=>({r:p.r,c:p.c})),
@@ -3067,9 +3096,9 @@ function publishOnlineMove(fr,fc,tr,tc,path,piece,capturedPiece){
     finalOri:{top:piece.ori.top, front:piece.ori.front, right:piece.ori.right},
     capture:!!capturedPiece, capturedType:capturedPiece?capturedPiece.type:null,
     lShape:lastMove.lShape,
-    // Include current player times so loser sees accurate stats on Game Over
     playerTimeWhite:playerTime.white,
     playerTimeBlack:playerTime.black,
+    boardSnapshot,
   });
 }
 

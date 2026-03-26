@@ -3347,38 +3347,40 @@ if(typeof ResizeObserver !== 'undefined'){
 
 </script>
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getDatabase, ref, set, get, onValue, off, push, update, remove, onDisconnect } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-
-const firebaseConfig={
-  apiKey:"AIzaSyDY1_x1erH0m2LmzTxaLvJ-dF91TphfKTc",
-  authDomain:"battle-dice-8df3b.firebaseapp.com",
-  databaseURL:"https://battle-dice-8df3b-default-rtdb.firebaseio.com",
-  projectId:"battle-dice-8df3b",
-  storageBucket:"battle-dice-8df3b.firebasestorage.app",
-  messagingSenderId:"572125800798",
-  appId:"1:572125800798:web:c90449f24ae7e17c3e47cf"
-};
-
 try {
-  const app=initializeApp(firebaseConfig);
-  // Pass the databaseURL explicitly to getDatabase
-  const db=getDatabase(app, "https://battle-dice-8df3b-default-rtdb.firebaseio.com");
-  window._firebaseDB=db;
-  window._fbRef=(path)=>ref(db,path);
-  window._fbSet=(r,v)=>set(r,v);
-  window._fbGet=(r)=>get(r);
-  window._fbOnValue=(r,cb)=>onValue(r,cb);
-  window._fbOff=(r)=>off(r);
-  window._fbPush=(r,v)=>push(r,v);
-  window._fbUpdate=(r,v)=>update(r,v);
-  window._fbRemove=(r)=>remove(r);
-  window._fbOnDisconnect=(r)=>onDisconnect(r);
-  window._firebaseReady=true;
-  console.log('Firebase ready:', db);
+  const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+  const { getDatabase, ref, set, get, onValue, off, push, update, remove, onDisconnect } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+
+  const app = initializeApp({
+    apiKey:"AIzaSyDY1_x1erH0m2LmzTxaLvJ-dF91TphfKTc",
+    authDomain:"battle-dice-8df3b.firebaseapp.com",
+    databaseURL:"https://battle-dice-8df3b-default-rtdb.firebaseio.com",
+    projectId:"battle-dice-8df3b",
+    storageBucket:"battle-dice-8df3b.firebasestorage.app",
+    messagingSenderId:"572125800798",
+    appId:"1:572125800798:web:c90449f24ae7e17c3e47cf"
+  });
+
+  const db = getDatabase(app);
+  console.log('Firebase db object:', db);
+  console.log('ref function:', typeof ref);
+
+  // Wrap every function so db is always in scope
+  window._firebaseDB = db;
+  window._fbRef = (path) => ref(db, path);
+  window._fbSet = (r, v) => set(r, v);
+  window._fbGet = (r) => get(r);
+  window._fbOnValue = (r, cb) => onValue(r, cb);
+  window._fbOff = (r) => off(r);
+  window._fbPush = (r, v) => push(r, v);
+  window._fbUpdate = (r, v) => update(r, v);
+  window._fbRemove = (r) => remove(r);
+  window._fbOnDisconnect = (r) => onDisconnect(r);
+  window._firebaseReady = true;
+  console.log('Firebase fully ready. Test ref:', window._fbRef('test'));
 } catch(e) {
   console.error('Firebase init error:', e);
-  window._firebaseError=e.message;
+  window._firebaseError = e.message;
 }
 </script>
 </body>

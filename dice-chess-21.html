@@ -2923,10 +2923,15 @@ async function onlineCreateRoom(){
   setOnlineStatus('Connecting to Firebase…');
   try{
     await ensureFirebase();
+    console.log('Firebase ensured, _fbRef:', typeof window._fbRef);
     const code=generateRoomCode();
+    console.log('Room code generated:', code);
+    const roomRef = window._fbRef('rooms/'+code);
+    console.log('roomRef created:', roomRef);
     onlineRoom=code;
     onlineMyColor='white';
-    onlineRoomRef=window._fbRef('rooms/'+code);
+    onlineRoomRef=roomRef;
+    console.log('About to set room data...');
     await window._fbSet(onlineRoomRef,{
       created:Date.now(),
       white:{connected:true},
@@ -2935,6 +2940,7 @@ async function onlineCreateRoom(){
       moves:{},
       turn:'white'
     });
+    console.log('Room created successfully!');
     document.getElementById('room-code-text').textContent=code;
     document.getElementById('room-code-display').style.display='block';
     setOnlineStatus('⏳ Waiting for opponent to join…');
@@ -2946,6 +2952,7 @@ async function onlineCreateRoom(){
       }
     });
   }catch(e){
+    console.error('onlineCreateRoom error:', e);
     setOnlineStatus('Connection failed: '+e.message,'rgba(220,80,80,.9)');
   }
 }

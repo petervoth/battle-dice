@@ -2459,6 +2459,7 @@ async function autoSaveGame(winnerColor){
     whiteCap: captured.white.filter(p=>p.type!=='king').length,
     blackCap: captured.black.filter(p=>p.type!=='king').length,
     outcomesUsed: outcomesEverOn,
+    isOnline: gameMode==='online',
     moveHistory: moveHistory.map(m=>({...m, path:m.path.map(p=>({r:p.r,c:p.c}))}))
   };
   updateStats(record);
@@ -2498,13 +2499,16 @@ async function renderSavedGames(){
     const outcomesIcon=g.outcomesUsed
       ?'<span title="Outcomes were shown" style="color:#e05050;font-size:1.1rem;">⚄</span>'
       :'<span title="Outcomes stayed hidden" style="color:var(--gold);font-size:1.1rem;">⚄</span>';
+    const onlineIcon=g.isOnline
+      ?'<span title="Online multiplayer game" style="font-size:1.1rem;">🌐</span>'
+      :'';
     const wTime=g.whiteTime!=null?formatTime(g.whiteTime):'—';
     const bTime=g.blackTime!=null?formatTime(g.blackTime):'—';
     const entry=document.createElement('div');
     entry.className='saved-game-entry';
     entry.innerHTML=`
       <div class="saved-game-info">
-        <div class="saved-game-title" style="display:flex;align-items:center;gap:6px;">${winnerLabel} ${outcomesIcon}</div>
+        <div class="saved-game-title" style="display:flex;align-items:center;gap:6px;">${winnerLabel} ${outcomesIcon}${onlineIcon}</div>
         <div class="saved-game-meta" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${dateStr} · ${modeLabel}</div>
         <div class="saved-game-meta">${g.rounds}&nbsp;rounds · ${g.totalMoves}&nbsp;moves · <span style="color:#e8dfc8;">⚀</span>&nbsp;${wTime} · <span style="color:#3a2e20;">⚅</span>&nbsp;${bTime}</div>
       </div>

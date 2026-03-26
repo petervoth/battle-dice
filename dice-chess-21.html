@@ -2920,111 +2920,82 @@ function copyRoomCode(){
 }
 
 async function onlineCreateRoom(){
-  setOnlineStatus('Connecting to Firebase…');
+  setOnlineStatus("Connecting to Firebase…");
   try{
     await ensureFirebase();
-    console.log('Firebase ensured, _fbRef:', typeof window._fbRef);
+    const db=window._firebaseDB;
     const code=generateRoomCode();
-    console.log('Room code generated:', code);
-    const roomRef = window._fbRef('rooms/'+code);
-    console.log('roomRef created:', roomRef);
-    onlineRoom=code;
-    onlineMyColor='white';
-    onlineRoomRef=roomRef;
-    console.log('About to set room data...');
-    await window._fbSet(onlineRoomRef,{
-      created:Date.now(),
-      white:{connected:true},
-      black:{connected:false},
-      state:'waiting',
-      moves:{},
-      turn:'white'
-    });
-    console.log('Room created successfully!');
-    document.getElementById('room-code-text').textContent=code;
-    document.getElementById('room-code-display').style.display='block';
-    setOnlineStatus('⏳ Waiting for opponent to join…');
-    const blackRef=window._fbRef('rooms/'+code+'/black/connected');
-    window._fbOnValue(blackRef,snap=>{
+    onlineRoom=code; onlineMyColor="white";
+    onlineRoomRef=db.ref("rooms/"+code);
+    await onlineRoomRef.set({created:Date.now(),white:{connected:true},black:{connected:false},state:"waiting",turn:"white"});
+    document.getElementById("room-code-text").textContent=code;
+    document.getElementById("room-code-display").style.display="block";
+    setOnlineStatus("⏳ Waiting for opponent to join…");
+    db.ref("rooms/"+code+"/black/connected").on("value",snap=>{
       if(snap.val()===true){
-        setOnlineStatus('✓ Opponent connected! Starting…','rgba(80,220,120,.9)');
+        setOnlineStatus("✓ Opponent connected! Starting…","rgba(80,220,120,.9)");
         setTimeout(()=>onlineStartGame(),800);
       }
     });
   }catch(e){
-    console.error('onlineCreateRoom error:', e);
-    setOnlineStatus('Connection failed: '+e.message,'rgba(220,80,80,.9)');
+    console.error("createRoom error:",e);
+    setOnlineStatus("Connection failed: "+e.message,"rgba(220,80,80,.9)");
   }
 }
 
 async function onlineJoinRoom(){
-  const raw=document.getElementById('join-code-input').value.trim().toUpperCase();
-  if(raw.length!==6){setOnlineStatus('Please enter a 6-character room code.','rgba(220,160,60,.8)');return;}
-  setOnlineStatus('Joining room '+raw+'…');
+  const raw=document.getElementById("join-code-input").value.trim().toUpperCase();
+  if(raw.length!==6){setOnlineStatus("Please enter a 6-character room code.","rgba(220,160,60,.8)");return;}
+  setOnlineStatus("Joining room "+raw+"…");
   try{
     await ensureFirebase();
-    const ref=window._fbRef('rooms/'+raw);
-    const snap=await window._fbGet(ref);
-    if(!snap.exists()){setOnlineStatus('Room not found. Check the code and try again.','rgba(220,80,80,.9)');return;}
+    const db=window._firebaseDB;
+    const snap=await db.ref("rooms/"+raw).once("value");
+    if(!snap.exists()){setOnlineStatus("Room not found. Check the code and try again.","rgba(220,80,80,.9)");return;}
     const data=snap.val();
-    if(data.state!=='waiting'){setOnlineStatus('This room is no longer available.','rgba(220,80,80,.9)');return;}
-    if(data.black&&data.black.connected){setOnlineStatus('Room is full.','rgba(220,80,80,.9)');return;}
-    onlineRoom=raw;
-    onlineMyColor='black';
-    onlineRoomRef=ref;
-    await window._fbUpdate(window._fbRef('rooms/'+raw+'/black'),{connected:true});
-    await window.window._fbSet(window._fbRef('rooms/'+raw+'/state'),'playing');
-    setOnlineStatus('✓ Joined! Starting game…','rgba(80,220,120,.9)');
+    if(data.state!=="waiting"){setOnlineStatus("This room is no longer available.","rgba(220,80,80,.9)");return;}
+    if(data.black&&data.black.connected){setOnlineStatus("Room is full.","rgba(220,80,80,.9)");return;}
+    onlineRoom=raw; onlineMyColor="black";
+    onlineRoomRef=db.ref("rooms/"+raw);
+    await db.ref("rooms/"+raw+"/black").update({connected:true});
+    await db.ref("rooms/"+raw+"/state").set("playing");
+    setOnlineStatus("✓ Joined! Starting game…","rgba(80,220,120,.9)");
     setTimeout(()=>onlineStartGame(),800);
   }catch(e){
-    setOnlineStatus('Error: '+e.message,'rgba(220,80,80,.9)');
+    console.error("joinRoom error:",e);
+    setOnlineStatus("Error: "+e.message,"rgba(220,80,80,.9)");
   }
 }
 
 function onlineStartGame(){
-  gameMode='online';
-  gameStarted=true;
-  document.getElementById('start-modal').classList.add('hidden');
-  const badge=document.getElementById('mode-badge');
-  badge.textContent='🌐 Online · You are '+onlineMyColor.charAt(0).toUpperCase()+onlineMyColor.slice(1);
-  const ob=document.getElementById('online-badge');
-  ob.textContent='🟢 Opponent connected';
-  ob.style.display='block';
-  resetGame(false);
-  turn='white';
-  // Listen for opponent moves
-  const movesRef=window._fbRef('rooms/'+onlineRoom+'/moves');
-  window._fbOnValue(movesRef,snap=>{
-    const moves=snap.val();
-    if(!moves) return;
-    const arr=Object.values(moves).sort((a,b)=>a.n-b.n);
-    arr.forEach(m=>{
-      if(m.color!==onlineMyColor&&m.n>moveHistory.length){
-        applyOnlineMove(m);
-      }
+  const db=window._firebaseDB;
+  gameMode="online"; gameStarted=true;
+  document.getElementById("start-modal").classList.add("hidden");
+  document.getElementById("mode-badge").textContent="Online · You are "+(onlineMyColor==="white"?"White":"Black");
+  const ob=document.getElementById("online-badge");
+  ob.textContent="Opponent connected"; ob.style.color="rgba(40,220,140,.9)"; ob.style.display="block";
+  resetGame(false); turn="white";
+  db.ref("rooms/"+onlineRoom+"/moves").on("value",snap=>{
+    const moves=snap.val(); if(!moves) return;
+    Object.values(moves).sort((a,b)=>a.n-b.n).forEach(m=>{
+      if(m.color!==onlineMyColor&&m.n>moveHistory.length) applyOnlineMove(m);
     });
   });
-  // Listen for opponent disconnect
-  const oppColor=onlineMyColor==='white'?'black':'white';
-  window._fbOnValue(window._fbRef('rooms/'+onlineRoom+'/'+oppColor+'/connected'),snap=>{
+  const oppColor=onlineMyColor==="white"?"black":"white";
+  db.ref("rooms/"+onlineRoom+"/"+oppColor+"/connected").on("value",snap=>{
     if(snap.val()===false&&gameStarted&&!gameOver){
-      const ob=document.getElementById('online-badge');
-      ob.textContent='🔴 Opponent disconnected';
-      ob.style.color='rgba(220,80,80,.9)';
-      setStatus('Opponent disconnected');
+      const ob=document.getElementById("online-badge");
+      ob.textContent="Opponent disconnected"; ob.style.color="rgba(220,80,80,.9)";
+      setStatus("Opponent disconnected");
     }
   });
-  // Mark self as disconnected on page close
-  const selfRef=window._fbRef('rooms/'+onlineRoom+'/'+onlineMyColor+'/connected');
-  window._fbOnDisconnect(selfRef).set(false);
-  render();
-  setStatus(onlineMyColor==='black'?'Waiting for White to move…':'');
+  db.ref("rooms/"+onlineRoom+"/"+onlineMyColor+"/connected").onDisconnect().set(false);
+  render(); setStatus(onlineMyColor==="black"?"Waiting for White to move…":"");
 }
 
 function applyOnlineMove(m){
   if(gameOver) return;
-  const piece=board[m.fr][m.fc];
-  if(!piece) return;
+  const piece=board[m.fr][m.fc]; if(!piece) return;
   const path=m.path.map(p=>({r:p.r,c:p.c}));
   animatePieceMove(piece,path,()=>{
     const capturedPiece=board[m.tr][m.tc];
@@ -3032,179 +3003,55 @@ function applyOnlineMove(m){
     let ori={...piece.ori};
     for(let i=0;i<path.length-1;i++){
       const dr=path[i+1].r-path[i].r,dc=path[i+1].c-path[i].c;
-      const dir=dr===1?'S':dr===-1?'N':dc===1?'E':'W';
-      ori=rollDie(ori,dir);
+      ori=rollDie(ori,dr===1?"S":dr===-1?"N":dc===1?"E":"W");
     }
-    piece.ori=ori;
-    board[m.tr][m.tc]=piece;
-    board[m.fr][m.fc]=null;
+    piece.ori=ori; board[m.tr][m.tc]=piece; board[m.fr][m.fc]=null;
     moveHistory.push(m);
     let wk=false,bk=false;
-    for(let r=0;r<9;r++)for(let c=0;c<9;c++){
-      const p=board[r][c];
-      if(p&&p.type==='king'){if(p.color==='white')wk=true;else bk=true;}
-    }
-    if(!bk){endGame('White wins! The Black King has been captured.');return;}
-    if(!wk){endGame('Black wins! The White King has been captured.');return;}
-    turn=turn==='white'?'black':'white';
-    selected=null;validMoves=[];
-    render();renderHistory();setStatus('');
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){const p=board[r][c];if(p&&p.type==="king"){if(p.color==="white")wk=true;else bk=true;}}
+    if(!bk){endGame("White wins! The Black King has been captured.");return;}
+    if(!wk){endGame("Black wins! The White King has been captured.");return;}
+    turn=turn==="white"?"black":"white"; selected=null;validMoves=[];
+    render();renderHistory();
+    setStatus(turn===onlineMyColor?"":"Waiting for opponent…");
   });
 }
 
 function publishOnlineMove(fr,fc,tr,tc,path,piece,capturedPiece){
-  if(!onlineRoomRef||gameMode!=='online'||!firebaseDB) return;
+  if(!onlineRoom||gameMode!=="online"||!window._firebaseDB) return;
   const lastMove=moveHistory[moveHistory.length-1];
-  const m={
+  window._firebaseDB.ref("rooms/"+onlineRoom+"/moves").push({
     n:lastMove.n, color:onlineMyColor, fr,fc,tr,tc,
     path:path.map(p=>({r:p.r,c:p.c})),
     from:lastMove.from, to:lastMove.to, type:piece.type,
     valBefore:lastMove.valBefore, valAfter:lastMove.valAfter,
     capture:!!capturedPiece, capturedType:capturedPiece?capturedPiece.type:null,
     lShape:lastMove.lShape,
-  };
-  window._fbPush(window._fbRef('rooms/'+onlineRoom+'/moves'),m);
+  });
 }
 
 function onlineCancelAndBack(){
-  if(onlineRoomRef&&firebaseDB){
-    window._fbOff(onlineRoomRef);
-    if(onlineMyColor==='white'){
-      window._fbGet(window._fbRef('rooms/'+onlineRoom+'/state')).then(snap=>{
-        if(snap.val()==='waiting') _fbRemove(_fbRef('rooms/'+onlineRoom));
+  if(window._firebaseDB&&onlineRoom){
+    const db=window._firebaseDB;
+    if(onlineMyColor==="white"){
+      db.ref("rooms/"+onlineRoom+"/state").once("value",snap=>{
+        if(snap.val()==="waiting") db.ref("rooms/"+onlineRoom).remove();
       });
     }
+    db.ref("rooms/"+onlineRoom).off();
   }
   onlineRoom=null;onlineMyColor=null;onlineRoomRef=null;
-  showModalView('main');
+  showModalView("main");
 }
 
 function onlineLeaveGame(){
-  if(firebaseDB&&onlineRoom&&onlineMyColor){
-    window._fbSet(window._fbRef('rooms/'+onlineRoom+'/'+onlineMyColor+'/connected'),false);
-    if(onlineRoomRef) window._fbOff(onlineRoomRef);
+  if(window._firebaseDB&&onlineRoom&&onlineMyColor){
+    const db=window._firebaseDB;
+    db.ref("rooms/"+onlineRoom+"/"+onlineMyColor+"/connected").set(false);
+    db.ref("rooms/"+onlineRoom).off();
   }
   onlineRoom=null;onlineMyColor=null;onlineRoomRef=null;
-  const ob=document.getElementById('online-badge');
-  if(ob) ob.style.display='none';
+  const ob=document.getElementById("online-badge");
+  if(ob) ob.style.display="none";
 }
 
-function generateRoomCode(){
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code='';
-  for(let i=0;i<6;i++) code+=chars[Math.floor(Math.random()*chars.length)];
-  return code;
-}
-
-function setOnlineStatus(msg, color){
-  const el=document.getElementById('online-status');
-  if(el){
-    el.textContent=msg;
-    el.style.color=color||'var(--gold-light)';
-  }
-}
-
-function resetOnlineLobbyUI(){
-  setOnlineStatus('');
-  document.getElementById('room-code-display').style.display='none';
-  const inp=document.getElementById('join-code-input');
-  if(inp) inp.value='';
-}
-
-function copyRoomCode(){
-  const code=document.getElementById('room-code-text').textContent;
-  navigator.clipboard.writeText(code).then(()=>{
-    setOnlineStatus('✓ Code copied to clipboard!','rgba(80,220,120,.9)');
-  }).catch(()=>{
-    setOnlineStatus('Code: '+code,'var(--gold-light)');
-  });
-}
-
-// ============================================================
-// INIT — show start modal on load, game starts only after mode is chosen
-// ============================================================
-function matchHistoryHeight(){
-  const boardOuter=document.getElementById('board-outer');
-  const historyPanel=document.getElementById('history-panel');
-  const playbackBar=document.getElementById('playback-bar');
-  if(boardOuter&&historyPanel){
-    if(document.body.classList.contains('replay-mode')&&playbackBar&&playbackBar.offsetHeight>0){
-      const totalHeight=boardOuter.offsetHeight+12+playbackBar.offsetHeight;
-      historyPanel.style.maxHeight=totalHeight+'px';
-      historyPanel.style.height=totalHeight+'px';
-    } else {
-      historyPanel.style.height='';
-      historyPanel.style.maxHeight=boardOuter.offsetHeight+'px';
-    }
-  }
-}
-showStartModal();
-matchHistoryHeight();
-window.addEventListener('resize', matchHistoryHeight);
-
-// Reposition replay overlay whenever the board changes size
-// (e.g. when the Claude.ai chat panel is resized)
-if(typeof ResizeObserver !== 'undefined'){
-  const ro = new ResizeObserver(()=>{
-    matchHistoryHeight();
-    if(replayIndex !== null){
-      const m = moveHistory[replayIndex];
-      if(m){
-        const boardEl = document.getElementById('board');
-        const cellW = boardEl.offsetWidth / 9;
-        const cellH = boardEl.offsetHeight / 9;
-        const boardOffX = boardEl.offsetLeft;
-        const boardOffY = boardEl.offsetTop;
-        drawReplayArrow(m, cellW, cellH, boardOffX, boardOffY);
-      }
-    }
-  });
-  ro.observe(document.getElementById('board'));
-}
-
-</script>
-<script>
-(function() {
-  function loadScript(src, onload) {
-    var s = document.createElement('script');
-    s.src = src;
-    s.onload = onload;
-    s.onerror = function() { window._firebaseError = 'Failed to load Firebase from CDN'; };
-    document.head.appendChild(s);
-  }
-
-  loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js', function() {
-    loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js', function() {
-      try {
-        var app = firebase.initializeApp({
-          apiKey:"AIzaSyDY1_x1erH0m2LmzTxaLvJ-dF91TphfKTc",
-          authDomain:"battle-dice-8df3b.firebaseapp.com",
-          databaseURL:"https://battle-dice-8df3b-default-rtdb.firebaseio.com",
-          projectId:"battle-dice-8df3b",
-          storageBucket:"battle-dice-8df3b.firebasestorage.app",
-          messagingSenderId:"572125800798",
-          appId:"1:572125800798:web:c90449f24ae7e17c3e47cf"
-        });
-        var db = firebase.database();
-        window._firebaseDB = db;
-        window._fbRef  = function(path) { return db.ref(path); };
-        window._fbSet  = function(r,v)  { return r.set(v); };
-        window._fbGet  = function(r)    { return r.get(); };
-        window._fbOnValue = function(r,cb) { r.on('value', cb); };
-        window._fbOff  = function(r)    { r.off(); };
-        window._fbPush = function(r,v)  { return r.push(v); };
-        window._fbUpdate = function(r,v){ return r.update(v); };
-        window._fbRemove = function(r)  { return r.remove(); };
-        window._fbOnDisconnect = function(r) { return r.onDisconnect(); };
-        window._firebaseReady = true;
-        console.log('Firebase compat ready');
-      } catch(e) {
-        console.error('Firebase init error:', e);
-        window._firebaseError = e.message;
-      }
-    });
-  });
-})();
-</script>
-</body>
-</html>

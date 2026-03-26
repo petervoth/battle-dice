@@ -3348,8 +3348,8 @@ if(typeof ResizeObserver !== 'undefined'){
 </script>
 <script type="module">
 try {
-  const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-  const { getDatabase, ref, set, get, onValue, off, push, update, remove, onDisconnect } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+  const { initializeApp } = await import('https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js');
+  const { getDatabase, ref, set, get, onValue, off, push, update, remove, onDisconnect } = await import('https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js');
 
   const app = initializeApp({
     apiKey:"AIzaSyDY1_x1erH0m2LmzTxaLvJ-dF91TphfKTc",
@@ -3362,10 +3362,7 @@ try {
   });
 
   const db = getDatabase(app);
-  console.log('Firebase db object:', db);
-  console.log('ref function:', typeof ref);
 
-  // Wrap every function so db is always in scope
   window._firebaseDB = db;
   window._fbRef = (path) => ref(db, path);
   window._fbSet = (r, v) => set(r, v);
@@ -3377,7 +3374,7 @@ try {
   window._fbRemove = (r) => remove(r);
   window._fbOnDisconnect = (r) => onDisconnect(r);
   window._firebaseReady = true;
-  console.log('Firebase fully ready. Test ref:', window._fbRef('test'));
+  console.log('Firebase 9.23.0 ready');
 } catch(e) {
   console.error('Firebase init error:', e);
   window._firebaseError = e.message;

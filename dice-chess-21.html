@@ -3346,39 +3346,48 @@ if(typeof ResizeObserver !== 'undefined'){
 }
 
 </script>
-<script type="module">
-try {
-  const { initializeApp } = await import('https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js');
-  const { getDatabase, ref, set, get, onValue, off, push, update, remove, onDisconnect } = await import('https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js');
+<script>
+(function() {
+  function loadScript(src, onload) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = onload;
+    s.onerror = function() { window._firebaseError = 'Failed to load Firebase from CDN'; };
+    document.head.appendChild(s);
+  }
 
-  const app = initializeApp({
-    apiKey:"AIzaSyDY1_x1erH0m2LmzTxaLvJ-dF91TphfKTc",
-    authDomain:"battle-dice-8df3b.firebaseapp.com",
-    databaseURL:"https://battle-dice-8df3b-default-rtdb.firebaseio.com",
-    projectId:"battle-dice-8df3b",
-    storageBucket:"battle-dice-8df3b.firebasestorage.app",
-    messagingSenderId:"572125800798",
-    appId:"1:572125800798:web:c90449f24ae7e17c3e47cf"
+  loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js', function() {
+    loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js', function() {
+      try {
+        var app = firebase.initializeApp({
+          apiKey:"AIzaSyDY1_x1erH0m2LmzTxaLvJ-dF91TphfKTc",
+          authDomain:"battle-dice-8df3b.firebaseapp.com",
+          databaseURL:"https://battle-dice-8df3b-default-rtdb.firebaseio.com",
+          projectId:"battle-dice-8df3b",
+          storageBucket:"battle-dice-8df3b.firebasestorage.app",
+          messagingSenderId:"572125800798",
+          appId:"1:572125800798:web:c90449f24ae7e17c3e47cf"
+        });
+        var db = firebase.database();
+        window._firebaseDB = db;
+        window._fbRef  = function(path) { return db.ref(path); };
+        window._fbSet  = function(r,v)  { return r.set(v); };
+        window._fbGet  = function(r)    { return r.get(); };
+        window._fbOnValue = function(r,cb) { r.on('value', cb); };
+        window._fbOff  = function(r)    { r.off(); };
+        window._fbPush = function(r,v)  { return r.push(v); };
+        window._fbUpdate = function(r,v){ return r.update(v); };
+        window._fbRemove = function(r)  { return r.remove(); };
+        window._fbOnDisconnect = function(r) { return r.onDisconnect(); };
+        window._firebaseReady = true;
+        console.log('Firebase compat ready');
+      } catch(e) {
+        console.error('Firebase init error:', e);
+        window._firebaseError = e.message;
+      }
+    });
   });
-
-  const db = getDatabase(app);
-
-  window._firebaseDB = db;
-  window._fbRef = (path) => ref(db, path);
-  window._fbSet = (r, v) => set(r, v);
-  window._fbGet = (r) => get(r);
-  window._fbOnValue = (r, cb) => onValue(r, cb);
-  window._fbOff = (r) => off(r);
-  window._fbPush = (r, v) => push(r, v);
-  window._fbUpdate = (r, v) => update(r, v);
-  window._fbRemove = (r) => remove(r);
-  window._fbOnDisconnect = (r) => onDisconnect(r);
-  window._firebaseReady = true;
-  console.log('Firebase 9.23.0 ready');
-} catch(e) {
-  console.error('Firebase init error:', e);
-  window._firebaseError = e.message;
-}
+})();
 </script>
 </body>
 </html>

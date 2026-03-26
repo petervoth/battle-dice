@@ -3016,35 +3016,41 @@ function applyOnlineMove(m){
   animatePieceMove(piece,path,()=>{
     const capturedPiece=board[m.tr][m.tc];
     if(capturedPiece) captured[piece.color].push(capturedPiece);
-    let ori={...piece.ori};
-    for(let i=0;i<path.length-1;i++){
-      const dr=path[i+1].r-path[i].r,dc=path[i+1].c-path[i].c;
-      ori=rollDie(ori,dr===1?"S":dr===-1?"N":dc===1?"E":"W");
+
+    // Use authoritative final orientation from Firebase — eliminates L-shape drift
+    if(m.finalOri){
+      piece.ori={top:m.finalOri.top, front:m.finalOri.front, right:m.finalOri.right};
+    } else {
+      // Fallback: recompute (for older moves without finalOri)
+      let ori={...piece.ori};
+      for(let i=0;i<path.length-1;i++){
+        const dr=path[i+1].r-path[i].r,dc=path[i+1].c-path[i].c;
+        ori=rollDie(ori,dr===1?"S":dr===-1?"N":dc===1?"E":"W");
+      }
+      piece.ori=ori;
     }
-    piece.ori=ori;
+
     board[m.tr][m.tc]=piece;
     board[m.fr][m.fc]=null;
     moveHistory.push(m);
 
-    // Trust the Firebase record for king captures — don't rely on local board state
-    // which may have drifted due to orientation differences
-    const kingCaptured = m.capture && m.capturedType==='king';
-    const kingColor = kingCaptured
-      ? (m.color==='white' ? 'black' : 'white')  // attacker's color tells us which king died
-      : null;
-
+    // Trust Firebase record for king captures — local board may drift
+    const kingCaptured=m.capture&&m.capturedType==='king';
     if(kingCaptured){
+      // Use times from the winning move record so both players see the same stats
+      if(m.playerTimeWhite!=null) playerTime.white=m.playerTimeWhite;
+      if(m.playerTimeBlack!=null) playerTime.black=m.playerTimeBlack;
       render(); renderHistory();
-      if(kingColor==='black'){
-        endGame("White wins! The Black King has been captured.");
-      } else {
-        endGame("Black wins! The White King has been captured.");
-      }
+      endGame(m.color==='white'
+        ? "White wins! The Black King has been captured."
+        : "Black wins! The White King has been captured.");
       return;
     }
 
     turn=turn==="white"?"black":"white";
     selected=null; validMoves=[];
+    // Restart timer for the new active player
+    stopTimer(); startTimer();
     render(); renderHistory();
     setStatus(turn===onlineMyColor?"":"Waiting for opponent…");
   });
@@ -3058,8 +3064,12 @@ function publishOnlineMove(fr,fc,tr,tc,path,piece,capturedPiece){
     path:path.map(p=>({r:p.r,c:p.c})),
     from:lastMove.from, to:lastMove.to, type:piece.type,
     valBefore:lastMove.valBefore, valAfter:lastMove.valAfter,
+    finalOri:{top:piece.ori.top, front:piece.ori.front, right:piece.ori.right},
     capture:!!capturedPiece, capturedType:capturedPiece?capturedPiece.type:null,
     lShape:lastMove.lShape,
+    // Include current player times so loser sees accurate stats on Game Over
+    playerTimeWhite:playerTime.white,
+    playerTimeBlack:playerTime.black,
   });
 }
 

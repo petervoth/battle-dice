@@ -2984,9 +2984,16 @@ function onlineStartGame(){
   const appliedMoves=new Set();
 
   db.ref("rooms/"+onlineRoom+"/moves").on("value",snap=>{
-    const moves=snap.val(); if(!moves) return;
-    Object.values(moves).sort((a,b)=>a.n-b.n).forEach(m=>{
-      if(m.color!==onlineMyColor&&m.n>moveHistory.length&&!appliedMoves.has(m.n)){
+    const moves=snap.val();
+    console.log('Firebase moves update, raw:', moves);
+    if(!moves) return;
+    const arr=Object.values(moves).sort((a,b)=>a.n-b.n);
+    console.log('Sorted moves:', arr.map(m=>({n:m.n,color:m.color,from:m.from,to:m.to})));
+    console.log('My color:', onlineMyColor, 'moveHistory.length:', moveHistory.length);
+    arr.forEach(m=>{
+      const shouldApply = m.color!==onlineMyColor && m.n>moveHistory.length && !appliedMoves.has(m.n);
+      console.log('Move',m.n,'from',m.color,'shouldApply:',shouldApply,'(color match:'+(m.color!==onlineMyColor)+', n check:'+(m.n>moveHistory.length)+', not applied:'+(!appliedMoves.has(m.n))+')');
+      if(shouldApply){
         appliedMoves.add(m.n);
         applyOnlineMove(m);
       }

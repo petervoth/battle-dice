@@ -299,7 +299,8 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
 .modal-btns{display:flex;flex-direction:column;gap:10px;}
 .modal-btn{width:100%;padding:12px 16px;border-radius:6px;border:1px solid rgba(200,160,60,.35);background:rgba(200,160,60,.08);color:var(--cream);cursor:pointer;transition:all .2s;text-align:left;display:flex;flex-direction:column;gap:2px;font-family:'Crimson Text',serif;}
 .modal-btn:hover{background:rgba(200,160,60,.2);border-color:var(--gold);transform:translateX(3px);}
-.modal-btn-icon{font-size:1.2rem;margin-bottom:2px;}
+.modal-btn-top{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.modal-btn-icon{font-size:1.1rem;flex-shrink:0;}
 .modal-btn-label{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:var(--gold-light);}
 .modal-btn-desc{font-size:.82rem;color:rgba(245,230,200,.55);}
 .diff-btn.locked{
@@ -372,14 +373,12 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
   padding:4px 6px;border-radius:3px;cursor:pointer;transition:all .15s;width:auto;white-space:nowrap;}
 .sg-btn.replay{border:1px solid rgba(200,160,60,.4);background:rgba(200,160,60,.1);color:var(--gold-light);}
 .sg-btn.replay:hover{background:rgba(200,160,60,.25);}
-.sg-btn.del{border:1px solid rgba(220,60,60,.35);background:rgba(220,60,60,.07);color:rgba(255,120,100,.7);}
-.sg-btn.del:hover{background:rgba(220,60,60,.2);}
 .saved-games-empty{font-size:.85rem;font-style:italic;color:rgba(245,230,200,.3);text-align:center;padding:20px 0;}
 
 #stats-content{display:flex;flex-direction:column;gap:8px;}
 .stats-section{background:rgba(255,255,255,.04);border:1px solid rgba(200,160,60,.18);border-radius:5px;padding:10px 12px;}
 .stats-section-title{font-family:'Playfair Display',serif;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:7px;border-bottom:1px solid rgba(200,160,60,.15);padding-bottom:4px;}
-.stats-row{display:flex;justify-content:space-between;font-size:.82rem;padding:2px 0;}
+.stats-row{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;padding:2px 0;gap:8px;}
 .stats-lbl{color:rgba(245,230,200,.6);}
 .stats-val{font-family:'Playfair Display',serif;font-weight:700;color:var(--cream);}
 .stats-clear-btn{margin-top:8px;font-family:'Crimson Text',serif;font-size:.78rem;padding:5px 10px;border-radius:3px;border:1px solid rgba(220,60,60,.3);background:rgba(220,60,60,.06);color:rgba(255,120,100,.65);cursor:pointer;width:100%;transition:all .15s;}
@@ -609,18 +608,6 @@ body.replay-mode #playback-bar{
   </div>
 </div>
 
-<!-- DELETE CONFIRMATION MODAL -->
-<div id="delete-confirm-modal" class="modal-backdrop hidden" style="z-index:300;">
-  <div class="modal-box" style="max-width:320px;text-align:center;">
-    <h2 class="modal-title" style="font-size:1.2rem;margin-bottom:8px;">🗑 Delete Game?</h2>
-    <p class="modal-sub" style="margin-bottom:18px;">This saved game will be permanently removed and cannot be recovered.</p>
-    <div style="display:flex;gap:10px;">
-      <button id="delete-confirm-btn" style="flex:1;background:rgba(220,60,60,.15);border-color:rgba(220,60,60,.5);color:rgba(255,120,100,.9);">✕ Delete</button>
-      <button onclick="hideDeleteConfirm()" style="flex:1;">← Keep</button>
-    </div>
-  </div>
-</div>
-
 <!-- RULES MODAL -->
 <div id="rules-modal" class="modal-backdrop hidden">
   <div class="modal-box" style="max-width:460px;text-align:left;">
@@ -651,18 +638,24 @@ body.replay-mode #playback-bar{
       <p class="modal-sub">Choose your game mode</p>
       <div class="modal-btns">
         <button class="modal-btn" onclick="startGame('hvh')">
-          <span class="modal-btn-icon">♟ ♟</span>
-          <span class="modal-btn-label">Human vs Human</span>
+          <div class="modal-btn-top">
+            <span class="modal-btn-label">Human vs Human</span>
+            <span class="modal-btn-icon">♟ ♟</span>
+          </div>
           <span class="modal-btn-desc">Pass &amp; play on one device</span>
         </button>
         <button class="modal-btn" onclick="showDiffSelect()">
-          <span class="modal-btn-icon">♟ ⚙</span>
-          <span class="modal-btn-label">Human vs AI</span>
+          <div class="modal-btn-top">
+            <span class="modal-btn-label">Human vs AI</span>
+            <span class="modal-btn-icon">♟ ⚙</span>
+          </div>
           <span class="modal-btn-desc">Play against the computer</span>
         </button>
         <button class="modal-btn" onclick="showModalView('online')">
-          <span class="modal-btn-icon">🌐 ♟</span>
-          <span class="modal-btn-label">Online Multiplayer</span>
+          <div class="modal-btn-top">
+            <span class="modal-btn-label">Online Multiplayer</span>
+            <span class="modal-btn-icon">🌐 ♟</span>
+          </div>
           <span class="modal-btn-desc">Play vs a friend over the internet</span>
         </button>
       </div>
@@ -781,6 +774,14 @@ body.replay-mode #playback-bar{
           <div class="stat-label">AI Difficulty</div>
           <div class="stat-val" id="stat-difficulty" style="font-size:1rem;">—</div>
         </div>
+      </div>
+      <div id="stat-score-section" style="display:none;">
+        <div class="stat-divider"></div>
+        <div style="text-align:center;padding:6px 0 2px;">
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(200,160,60,.6);margin-bottom:4px;">Score</div>
+          <div id="stat-score" style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:900;color:var(--gold-light);letter-spacing:.05em;">—</div>
+        </div>
+        <div id="stat-score-breakdown" style="font-size:.72rem;color:rgba(245,230,200,.45);text-align:center;line-height:1.7;margin-top:2px;"></div>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
@@ -1261,6 +1262,37 @@ function animatePieceMove(piece, path, onComplete){
   requestAnimationFrame(()=>requestAnimationFrame(animateStep));
 }
 
+// ============================================================
+// SCORING SYSTEM
+// ============================================================
+const SCORE_DIFFICULTY={1:1.0, 2:1.5, 3:2.5, 4:4.0};
+
+function calculateScore(winnerColor, mode, depth, rounds, humanTimeSec, outcomesUsed){
+  // Only score human wins vs AI
+  if(mode!=='ai') return null;
+  if(winnerColor==='black') return null; // human plays white, AI plays black
+
+  const diffMult = SCORE_DIFFICULTY[depth] || 1.0;
+
+  // Efficiency: linear with floor — rewards fewer rounds
+  const effLinear = Math.max(50, 500 - (rounds * 10));
+
+  // Speed: linear with floor — rewards thinking quickly (human time only)
+  const speedLinear = Math.max(50, 300 - (humanTimeSec * 2));
+
+  // Combine linear with exponential decay safety net — take the higher of the two
+  const effDecay = 500 * Math.pow(0.97, rounds);
+  const speedDecay = 300 * Math.pow(0.98, humanTimeSec);
+  const effScore = Math.max(effLinear, effDecay);
+  const speedScore = Math.max(speedLinear, speedDecay);
+
+  // Outcomes penalty
+  const outcomesMult = outcomesUsed ? 0.75 : 1.0;
+
+  const raw = diffMult * (effScore + speedScore) * outcomesMult;
+  return Math.round(raw);
+}
+
 function endGame(msg){
   gameOver=true;
   stopTimer();
@@ -1308,6 +1340,32 @@ function endGame(msg){
   document.querySelectorAll('.stat-player').forEach(el=>el.classList.remove('winner'));
   const winnerSide=winnerColor==='white'?'.white-side':'.black-side';
   document.querySelector(`#o-stats ${winnerSide}`)?.classList.add('winner');
+
+  // Calculate and display score (AI wins by human only)
+  const humanTimeSec = wTime / 1000; // human always plays white
+  const score = calculateScore(winnerColor, gameMode, aiDepth, rounds, humanTimeSec, outcomesEverOn);
+  const scoreSection = document.getElementById('stat-score-section');
+  if(score !== null){
+    const diffLabel = DIFF_LEVELS.find(d=>d.depth===aiDepth)?.label||'';
+    const diffMult = SCORE_DIFFICULTY[aiDepth]||1.0;
+    const effScore = Math.round(Math.max(Math.max(50, 500-(rounds*10)), 500*Math.pow(0.97,rounds)));
+    const speedScore = Math.round(Math.max(Math.max(50, 300-(humanTimeSec*2)), 300*Math.pow(0.98,humanTimeSec)));
+    const outcomesPct = outcomesEverOn?'×0.75 penalty':'×1.0';
+    document.getElementById('stat-score').textContent=score.toLocaleString();
+    document.getElementById('stat-score-breakdown').innerHTML=
+      `${diffLabel} ×${diffMult} &nbsp;·&nbsp; Efficiency ${effScore} &nbsp;·&nbsp; Speed ${speedScore}`+
+      `<br>Outcomes ${outcomesPct}`;
+    scoreSection.style.display='block';
+
+    // Update all-time high score in localStorage
+    const key=`bestScore_ai_${aiDepth}`;
+    try{
+      const prev=parseInt(localStorage.getItem(key))||0;
+      if(score>prev) localStorage.setItem(key, score);
+    }catch{}
+  } else {
+    scoreSection.style.display='none';
+  }
 
   document.getElementById('overlay').classList.add('show');
 
@@ -2606,6 +2664,9 @@ async function autoSaveGame(winnerColor){
     myName: gameMode==='online'?onlineMyName:'',
     myColor: gameMode==='online'?onlineMyColor:'',
     oppName: gameMode==='online'?onlineOppName:'',
+    score: calculateScore(winnerColor, gameMode, aiDepth,
+             Math.ceil(moveHistory.length/2),
+             playerTime.white/1000, outcomesEverOn),
     moveHistory: moveHistory.map(m=>({...m, path:m.path.map(p=>({r:p.r,c:p.c}))}))
   };
   updateStats(record);
@@ -2651,8 +2712,8 @@ async function renderSavedGames(){
       :g.isOnline&&g.oppName?`vs ${g.oppName} (${g.myColor==='white'?'Black':'White'})`
       :'Human vs Human';
     const outcomesIcon=g.outcomesUsed
-      ?'<span title="Outcomes were shown" style="color:#e05050;font-size:1.1rem;">⚄</span>'
-      :'<span title="Outcomes stayed hidden" style="color:var(--gold);font-size:1.1rem;">⚄</span>';
+      ?''
+      :'<span title="Outcomes stayed hidden" style="color:var(--gold);font-size:1.1rem;">♔</span>';
     const onlineIcon=g.isOnline
       ?'<span title="Online multiplayer game" style="font-size:1.1rem;">🌐</span>'
       :'';
@@ -2664,38 +2725,15 @@ async function renderSavedGames(){
       <div class="saved-game-info">
         <div class="saved-game-title" style="display:flex;align-items:center;gap:6px;">${winnerLabel} ${outcomesIcon}${onlineIcon}</div>
         <div class="saved-game-meta" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${dateStr} · ${modeLabel}</div>
-        <div class="saved-game-meta">${g.rounds}&nbsp;rounds · ${g.totalMoves}&nbsp;moves · <span style="color:#e8dfc8;">⚀</span>&nbsp;${wTime} · <span style="color:#3a2e20;">⚅</span>&nbsp;${bTime}</div>
+        <div class="saved-game-meta">${g.rounds}&nbsp;rounds · ${g.totalMoves}&nbsp;moves · <span title="White player timer" style="color:#e8dfc8;cursor:default;">⚀</span>&nbsp;${wTime} · <span title="Black player timer" style="color:#e05050;cursor:default;">⚅</span>&nbsp;${bTime}</div>
       </div>
       <div class="saved-game-btns">
         <button class="sg-btn replay" onclick="replayFromSave(${g.id})">▶</button>
-        <button class="sg-btn del" onclick="deleteSavedGame(${g.id})">🗑</button>
+        ${g.score?`<span style="font-family:'Playfair Display',serif;font-size:.82rem;font-weight:700;color:var(--gold-light);text-align:right;white-space:nowrap;">${g.score.toLocaleString()}<br><span style="font-size:.65rem;font-weight:400;color:rgba(200,160,60,.6);">pts</span></span>`:'<span></span>'}
       </div>
     `;
     list.appendChild(entry);
   });
-}
-
-let pendingDeleteId=null;
-
-function showDeleteConfirm(id){
-  pendingDeleteId=id;
-  document.getElementById('delete-confirm-modal').classList.remove('hidden');
-  document.getElementById('delete-confirm-btn').onclick=async()=>{
-    const idToDelete=pendingDeleteId;
-    hideDeleteConfirm();
-    if(idToDelete===null) return;
-    try{ await deleteGame(idToDelete); }catch(e){ console.warn(e); }
-    renderSavedGames();
-  };
-}
-
-function hideDeleteConfirm(){
-  pendingDeleteId=null;
-  document.getElementById('delete-confirm-modal').classList.add('hidden');
-}
-
-async function deleteSavedGame(id){
-  showDeleteConfirm(id);
 }
 
 async function replayFromSave(id){
@@ -2715,7 +2753,7 @@ async function replayFromSave(id){
   startFullReplay();
 }
 
-function renderStatsView(){
+async function renderStatsView(){
   const s=loadStats();
   const el=document.getElementById('stats-content');
   const total=s.totalGames||0;
@@ -2742,6 +2780,39 @@ function renderStatsView(){
   });
   if(aiHtml){
     html+=`<div class="stats-section"><div class="stats-section-title">vs AI (Your Wins / Losses)</div>${aiHtml}</div>`;
+  }
+
+  // Best and average scores per difficulty from saved game records
+  const scoreNames=['Easy','Medium','Hard','Expert'];
+  let bestHtml='';
+  try{
+    const allGames=await getAllGames();
+    scoreNames.forEach((name,i)=>{
+      const depth=i+1;
+      const wins=allGames.filter(g=>g.mode==='ai'&&g.winner==='white'&&g.score&&
+        (g.difficulty===name));
+      const best=wins.reduce((max,g)=>Math.max(max,g.score||0),0);
+      const avg=wins.length?Math.round(wins.reduce((sum,g)=>sum+(g.score||0),0)/wins.length):0;
+      if(best>0){
+        bestHtml+=`<div class="stats-row">
+          <span class="stats-lbl">${name}</span>
+          <span style="font-size:.78rem;color:rgba(245,230,200,.5);">Avg: ${avg.toLocaleString()}</span>
+          <span class="stats-val">Best: ${best.toLocaleString()}</span>
+        </div>`;
+      }
+    });
+  }catch(e){
+    // Fallback to localStorage best scores only
+    scoreNames.forEach((name,i)=>{
+      const depth=i+1;
+      try{
+        const best=parseInt(localStorage.getItem(`bestScore_ai_${depth}`))||0;
+        if(best>0) bestHtml+=`<div class="stats-row"><span class="stats-lbl">${name}</span><span class="stats-val">Best: ${best.toLocaleString()}</span></div>`;
+      }catch{}
+    });
+  }
+  if(bestHtml){
+    html+=`<div class="stats-section"><div class="stats-section-title">Scores (vs AI wins)</div>${bestHtml}</div>`;
   }
 
   html+=`<button class="stats-clear-btn" onclick="clearAllStats()">🗑 Clear All Stats</button>`;
@@ -3367,6 +3438,54 @@ function matchHistoryHeight(){
 }
 showStartModal();
 matchHistoryHeight();
+
+// Backfill scores for legacy saved games that predate the scoring system
+async function migrateScores(){
+  try{
+    const db=await openDB();
+    const games=await getAllGames();
+    const diffNameToDepth={'Easy':1,'Medium':2,'Hard':3,'Expert':4};
+    const toUpdate=[];
+
+    // Calculate scores for all eligible games
+    games.forEach(g=>{
+      if(g.score!=null) return; // already scored
+      if(g.mode!=='ai') return;
+      if(g.winner!=='white') return;
+      const depth=diffNameToDepth[g.difficulty];
+      if(!depth) return;
+      const rounds=g.rounds||Math.ceil((g.totalMoves||0)/2);
+      const humanTimeSec=(g.whiteTime||0)/1000;
+      const score=calculateScore('white','ai',depth,rounds,humanTimeSec,!!g.outcomesUsed);
+      if(score==null) return;
+      toUpdate.push({...g, score});
+
+      // Update best score in localStorage
+      const key=`bestScore_ai_${depth}`;
+      try{
+        const prev=parseInt(localStorage.getItem(key))||0;
+        if(score>prev) localStorage.setItem(key,score);
+      }catch{}
+    });
+
+    if(!toUpdate.length) return;
+
+    // Write all updates in a single transaction
+    await new Promise((resolve, reject)=>{
+      const tx=db.transaction('games','readwrite');
+      const store=tx.objectStore('games');
+      toUpdate.forEach(record=>store.put(record));
+      tx.oncomplete=()=>{
+        console.log(`Score migration: backfilled ${toUpdate.length} game(s).`);
+        resolve();
+      };
+      tx.onerror=()=>reject(tx.error);
+    });
+  }catch(e){
+    console.warn('Score migration failed:',e);
+  }
+}
+migrateScores();
 window.addEventListener('resize', matchHistoryHeight);
 
 if(typeof ResizeObserver !== 'undefined'){

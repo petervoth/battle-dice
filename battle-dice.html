@@ -835,8 +835,9 @@ let moveHistory=[];
 
 // Timer state
 let timerTick=null;
-let playerTime={white:0, black:0}; // milliseconds each player has spent
-let timerStart=null; // timestamp when current player's clock started
+let playerTime={white:0, black:0};
+let timerStart=null;
+let timerActivePlayer=null; // tracks which player the running timer belongs to
 
 function formatTime(ms, short=false){
   const totalTenths=Math.floor(ms/100);
@@ -849,29 +850,29 @@ function formatTime(ms, short=false){
 }
 
 function startTimer(){
-  const activePlayer=turn; // capture now — don't rely on turn changing mid-interval
+  timerActivePlayer=turn; // capture which player this timer belongs to
   timerStart=Date.now();
   timerTick=setInterval(()=>{
     if(gameOver){stopTimer();return;}
     const elapsed=Date.now()-timerStart;
-    const total=playerTime[activePlayer]+elapsed;
-    document.getElementById(`timer-${activePlayer}`).textContent=formatTime(total);
+    const total=playerTime[timerActivePlayer]+elapsed;
+    document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(total);
   },100);
-  // Force an immediate display update so the clock shows the banked total right away
-  document.getElementById(`timer-${activePlayer}`).textContent=formatTime(playerTime[activePlayer]);
-  // Highlight active timer row
-  document.getElementById('timer-white-row').classList.toggle('active-timer',turn==='white');
-  document.getElementById('timer-black-row').classList.toggle('active-timer',turn==='black');
+  document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(playerTime[timerActivePlayer]);
+  document.getElementById('timer-white-row').classList.toggle('active-timer',timerActivePlayer==='white');
+  document.getElementById('timer-black-row').classList.toggle('active-timer',timerActivePlayer==='black');
 }
 
 function stopTimer(){
   if(timerTick){clearInterval(timerTick);timerTick=null;}
-  // Bank the elapsed time and flush final value to display before clearing
-  if(timerStart!==null){
-    const elapsed=Date.now()-timerStart;
-    playerTime[turn]+=elapsed;
-    // Force display to show the final banked value
-    document.getElementById(`timer-${turn}`).textContent=formatTime(playerTime[turn]);
+  if(timerStart!==null&&timerActivePlayer!==null){
+    // In online mode, only bank our own time — opponent's time comes from Firebase
+    const shouldBank = gameMode!=='online' || timerActivePlayer===onlineMyColor;
+    if(shouldBank){
+      const elapsed=Date.now()-timerStart;
+      playerTime[timerActivePlayer]+=elapsed;
+      document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(playerTime[timerActivePlayer]);
+    }
     timerStart=null;
   }
 }
@@ -880,6 +881,7 @@ function resetTimers(){
   stopTimer();
   playerTime={white:0,black:0};
   timerStart=null;
+  timerActivePlayer=null;
   document.getElementById('timer-white').textContent='0:00.0';
   document.getElementById('timer-black').textContent='0:00.0';
   document.getElementById('timer-white-row').classList.remove('active-timer');
@@ -1135,12 +1137,7 @@ function executeMove(fr,fc,tr,tc,chosenPath){
     stopTimer(); // ensure clean state before switching
     turn=turn==='white'?'black':'white';
     selected=null;validMoves=[];pendingMove=null;
-    // In online mode, don't start timer — wait for opponent's move to trigger it
-    if(gameMode!=='online') startTimer();
-    else {
-      document.getElementById('timer-white-row').classList.toggle('active-timer',turn==='white');
-      document.getElementById('timer-black-row').classList.toggle('active-timer',turn==='black');
-    }
+    startTimer();
     render();setStatus('');
     if(gameMode==='ai'&&turn===aiColor&&!gameOver) triggerAIMove();
     if(gameMode==='online'&&turn!==onlineMyColor&&!gameOver) setStatus('Waiting for opponent…');
@@ -3200,12 +3197,11 @@ function applyOnlineMove(m){
       document.getElementById('timer-black').textContent=formatTime(playerTime.black);
     }
 
-    // Only run our timer when it's our turn
-    if(turn===onlineMyColor) startTimer();
-    else {
-      document.getElementById('timer-white-row').classList.toggle('active-timer',turn==='white');
-      document.getElementById('timer-black-row').classList.toggle('active-timer',turn==='black');
-    }
+    // Start timer for whoever's turn it now is
+    // (works for both players — if it's our turn we time ourselves,
+    //  if it's opponent's turn startTimer still ticks their display correctly
+    //  since timerActivePlayer captures turn which is now the opponent)
+    startTimer();
 
     render(); renderHistory();
     setStatus(turn===onlineMyColor?"":"Waiting for opponent…");

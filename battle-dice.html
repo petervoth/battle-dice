@@ -1092,13 +1092,14 @@ function executeMove(fr,fc,tr,tc,chosenPath){
       const p=board[r][c];
       if(p&&p.type==='king'){if(p.color==='white')wk=true;else bk=true;}
     }
-    if(!bk){endGame('White wins! The Black King has been captured.');return;}
-    if(!wk){endGame('Black wins! The White King has been captured.');return;}
 
-    // Publish to Firebase if online
+    // Publish to Firebase BEFORE endGame (which returns early) so opponent receives the killing move
     if(gameMode==='online'){
       publishOnlineMove(fr,fc,tr,tc,chosenPath,piece,capturedPiece);
     }
+
+    if(!bk){endGame('White wins! The Black King has been captured.');return;}
+    if(!wk){endGame('Black wins! The White King has been captured.');return;}
 
     stopTimer(); // ensure clean state before switching
     turn=turn==='white'?'black':'white';

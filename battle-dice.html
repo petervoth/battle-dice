@@ -854,12 +854,21 @@ function startTimer(){
   stopTimer();
   timerActivePlayer=turn;
 
-  // In online mode, only actively tick our own clock
-  // Opponent's clock is shown frozen at their last banked value — updated via Firebase
+  // In online mode when it's the opponent's turn:
+  // Show an approximated ticker starting from their last banked time
+  // Will be corrected to authoritative value when their move arrives
   if(gameMode==='online' && timerActivePlayer!==onlineMyColor){
-    // Just update highlights — don't start a ticking interval
+    const approxStart=Date.now();
+    const baseTime=playerTime[timerActivePlayer];
+    timerTick=setInterval(()=>{
+      if(gameOver){clearInterval(timerTick);timerTick=null;return;}
+      const approxTotal=baseTime+(Date.now()-approxStart);
+      document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(approxTotal);
+    },100);
+    document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(baseTime);
     document.getElementById('timer-white-row').classList.toggle('active-timer',timerActivePlayer==='white');
     document.getElementById('timer-black-row').classList.toggle('active-timer',timerActivePlayer==='black');
+    // Don't set timerStart — stopTimer won't bank this approximate time
     timerActivePlayer=null;
     return;
   }

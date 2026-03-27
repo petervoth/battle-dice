@@ -3186,19 +3186,23 @@ function applyOnlineMove(m){
     turn=turn==="white"?"black":"white";
     selected=null; validMoves=[];
 
-    // Sync opponent's banked time from the published move record
-    // then restart our own timer for our turn
-    if(m.color==='white'&&m.playerTimeWhite!=null) playerTime.white=m.playerTimeWhite;
-    if(m.color==='black'&&m.playerTimeBlack!=null) playerTime.black=m.playerTimeBlack;
-    // Update opponent's display with their authoritative banked time
-    const oppDisplayColor=m.color;
-    document.getElementById(`timer-${oppDisplayColor}`).textContent=formatTime(playerTime[oppDisplayColor]);
-
+    // Stop timer first (banks our own elapsed time accurately)
     stopTimer();
+
+    // Then sync opponent's banked time from the published move record
+    // (done AFTER stopTimer so it doesn't get overwritten)
+    if(m.color==='white'&&m.playerTimeWhite!=null){
+      playerTime.white=m.playerTimeWhite;
+      document.getElementById('timer-white').textContent=formatTime(playerTime.white);
+    }
+    if(m.color==='black'&&m.playerTimeBlack!=null){
+      playerTime.black=m.playerTimeBlack;
+      document.getElementById('timer-black').textContent=formatTime(playerTime.black);
+    }
+
     // Only run our timer when it's our turn
     if(turn===onlineMyColor) startTimer();
     else {
-      // Show active highlight correctly
       document.getElementById('timer-white-row').classList.toggle('active-timer',turn==='white');
       document.getElementById('timer-black-row').classList.toggle('active-timer',turn==='black');
     }

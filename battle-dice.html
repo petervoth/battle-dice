@@ -2641,12 +2641,12 @@ async function renderSavedGames(){
     const d=new Date(g.date);
     const dateStr=d.toLocaleDateString()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     const winnerLabel=g.winner==='white'
-      ?(g.isOnline&&g.myName&&g.myColor==='white'?`⚀ ${g.myName} wins`
-        :g.isOnline&&g.oppName&&g.myColor==='black'?`⚀ ${g.oppName} wins`
-        :'⚀ White wins')
-      :(g.isOnline&&g.myName&&g.myColor==='black'?`⚅ ${g.myName} wins`
-        :g.isOnline&&g.oppName&&g.myColor==='white'?`⚅ ${g.oppName} wins`
-        :'⚅ Black wins');
+      ?(g.isOnline&&g.myColor==='white'?`⚀ You won`
+        :g.isOnline&&g.oppName&&g.myColor==='black'?`⚀ ${g.oppName} won`
+        :'⚀ White won')
+      :(g.isOnline&&g.myColor==='black'?`⚅ You won`
+        :g.isOnline&&g.oppName&&g.myColor==='white'?`⚅ ${g.oppName} won`
+        :'⚅ Black won');
     const modeLabel=g.mode==='ai'?`vs AI (${g.difficulty})`
       :g.isOnline&&g.myName?`${g.myName} (${g.myColor==='white'?'White':'Black'}) vs ${g.oppName}`
       :'Human vs Human';

@@ -686,7 +686,16 @@ body.replay-mode #playback-bar{
     <div id="modal-view-online" style="display:none;">
       <h2 class="modal-title" style="margin-bottom:4px;">🌐 Online Play</h2>
       <div id="online-lobby">
-        <p class="modal-sub" style="margin-bottom:14px;">Create a room and share the code, or join a friend's room.</p>
+        <p class="modal-sub" style="margin-bottom:10px;">Create a room and share the code, or join a friend's room.</p>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:.75rem;color:rgba(245,230,200,.5);text-transform:uppercase;
+            letter-spacing:.08em;margin-bottom:5px;">Your Nickname</div>
+          <input id="nickname-input" type="text" placeholder="Enter a nickname…" maxlength="20"
+            style="width:100%;padding:9px 12px;border-radius:5px;border:1px solid rgba(200,160,60,.4);
+            background:rgba(255,255,255,.06);color:var(--cream);font-family:'Crimson Text',serif;
+            font-size:1rem;outline:none;box-sizing:border-box;"
+            oninput="saveNickname(this.value)">
+        </div>
         <div class="modal-btns">
           <button class="modal-btn" onclick="onlineCreateRoom()">
             <span class="modal-btn-label">🎲 Create Room</span>
@@ -2592,6 +2601,9 @@ async function autoSaveGame(winnerColor){
     blackCap: captured.black.filter(p=>p.type!=='king').length,
     outcomesUsed: outcomesEverOn,
     isOnline: gameMode==='online',
+    myName: gameMode==='online'?onlineMyName:'',
+    myColor: gameMode==='online'?onlineMyColor:'',
+    oppName: gameMode==='online'?onlineOppName:'',
     moveHistory: moveHistory.map(m=>({...m, path:m.path.map(p=>({r:p.r,c:p.c}))}))
   };
   updateStats(record);
@@ -2626,8 +2638,16 @@ async function renderSavedGames(){
   games.forEach(g=>{
     const d=new Date(g.date);
     const dateStr=d.toLocaleDateString()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-    const winnerLabel=g.winner==='white'?'⚀ White wins':'⚅ Black wins';
-    const modeLabel=g.mode==='ai'?`vs AI (${g.difficulty})`:'Human vs Human';
+    const winnerLabel=g.winner==='white'
+      ?(g.isOnline&&g.myName&&g.myColor==='white'?`⚀ ${g.myName} wins`
+        :g.isOnline&&g.oppName&&g.myColor==='black'?`⚀ ${g.oppName} wins`
+        :'⚀ White wins')
+      :(g.isOnline&&g.myName&&g.myColor==='black'?`⚅ ${g.myName} wins`
+        :g.isOnline&&g.oppName&&g.myColor==='white'?`⚅ ${g.oppName} wins`
+        :'⚅ Black wins');
+    const modeLabel=g.mode==='ai'?`vs AI (${g.difficulty})`
+      :g.isOnline&&g.myName?`${g.myName} (${g.myColor==='white'?'White':'Black'}) vs ${g.oppName}`
+      :'Human vs Human';
     const outcomesIcon=g.outcomesUsed
       ?'<span title="Outcomes were shown" style="color:#e05050;font-size:1.1rem;">⚄</span>'
       :'<span title="Outcomes stayed hidden" style="color:var(--gold);font-size:1.1rem;">⚄</span>';
@@ -3004,6 +3024,8 @@ let firebaseDB=null;
 let onlineRoom=null;
 let onlineMyColor=null;
 let onlineRoomRef=null;
+let onlineMyName='';
+let onlineOppName='';
 
 // Module script injects these globals asynchronously
 function ensureFirebase(){
@@ -3039,11 +3061,22 @@ function setOnlineStatus(msg,color){
   if(el){el.textContent=msg;el.style.color=color||'var(--gold-light)';}
 }
 
+function saveNickname(val){
+  try{ localStorage.setItem('battleDiceNickname', val.trim()); }catch{}
+}
+
+function loadNickname(){
+  try{ return localStorage.getItem('battleDiceNickname')||''; }catch{ return ''; }
+}
+
 function resetOnlineLobbyUI(){
   setOnlineStatus('');
   document.getElementById('room-code-display').style.display='none';
   const inp=document.getElementById('join-code-input');
   if(inp) inp.value='';
+  // Auto-populate nickname from localStorage
+  const nicknameInp=document.getElementById('nickname-input');
+  if(nicknameInp) nicknameInp.value=loadNickname();
 }
 
 function copyRoomCode(){
@@ -3060,16 +3093,21 @@ async function onlineCreateRoom(){
   try{
     await ensureFirebase();
     const db=window._firebaseDB;
+    const myName=document.getElementById("nickname-input").value.trim()||"Player";
+    saveNickname(myName);
+    onlineMyName=myName; onlineOppName="";
     const code=generateRoomCode();
     onlineRoom=code; onlineMyColor="white";
     onlineRoomRef=db.ref("rooms/"+code);
-    await onlineRoomRef.set({created:Date.now(),white:{connected:true},black:{connected:false},state:"waiting",turn:"white"});
+    await onlineRoomRef.set({created:Date.now(),white:{connected:true,name:myName},black:{connected:false,name:""},state:"waiting",turn:"white"});
     document.getElementById("room-code-text").textContent=code;
     document.getElementById("room-code-display").style.display="block";
     setOnlineStatus("⏳ Waiting for opponent to join…");
-    db.ref("rooms/"+code+"/black/connected").on("value",snap=>{
-      if(snap.val()===true){
-        setOnlineStatus("✓ Opponent connected! Starting…","rgba(80,220,120,.9)");
+    db.ref("rooms/"+code+"/black").on("value",snap=>{
+      const d=snap.val();
+      if(d&&d.connected===true){
+        onlineOppName=d.name||"Black";
+        setOnlineStatus("✓ "+onlineOppName+" connected! Starting…","rgba(80,220,120,.9)");
         setTimeout(()=>onlineStartGame(),800);
       }
     });
@@ -3091,9 +3129,13 @@ async function onlineJoinRoom(){
     const data=snap.val();
     if(data.state!=="waiting"){setOnlineStatus("This room is no longer available.","rgba(220,80,80,.9)");return;}
     if(data.black&&data.black.connected){setOnlineStatus("Room is full.","rgba(220,80,80,.9)");return;}
+    const myName=document.getElementById("nickname-input").value.trim()||"Player";
+    saveNickname(myName);
+    onlineMyName=myName;
+    onlineOppName=data.white&&data.white.name?data.white.name:"White";
     onlineRoom=raw; onlineMyColor="black";
     onlineRoomRef=db.ref("rooms/"+raw);
-    await db.ref("rooms/"+raw+"/black").update({connected:true});
+    await db.ref("rooms/"+raw+"/black").update({connected:true,name:myName});
     await db.ref("rooms/"+raw+"/state").set("playing");
     setOnlineStatus("✓ Joined! Starting game…","rgba(80,220,120,.9)");
     setTimeout(()=>onlineStartGame(),800);
@@ -3107,9 +3149,10 @@ function onlineStartGame(){
   const db=window._firebaseDB;
   gameMode="online"; gameStarted=true;
   document.getElementById("start-modal").classList.add("hidden");
-  document.getElementById("mode-badge").textContent="Online · You are "+(onlineMyColor==="white"?"White":"Black");
+  const oppColor=onlineMyColor==="white"?"black":"white";
+  document.getElementById("mode-badge").textContent="🌐 vs "+onlineOppName+" ("+oppColor.charAt(0).toUpperCase()+oppColor.slice(1)+")";
   const ob=document.getElementById("online-badge");
-  ob.textContent="Opponent connected"; ob.style.color="rgba(40,220,140,.9)"; ob.style.display="block";
+  ob.textContent="🟢 "+onlineOppName+" connected"; ob.style.color="rgba(40,220,140,.9)"; ob.style.display="block";
   resetGame(false); turn="white";
   // Always start timer — both players see the active player's clock ticking from the start
   startTimer();
@@ -3126,12 +3169,11 @@ function onlineStartGame(){
       }
     });
   });
-  const oppColor=onlineMyColor==="white"?"black":"white";
   db.ref("rooms/"+onlineRoom+"/"+oppColor+"/connected").on("value",snap=>{
     if(snap.val()===false&&gameStarted&&!gameOver){
       const ob=document.getElementById("online-badge");
-      ob.textContent="Opponent disconnected"; ob.style.color="rgba(220,80,80,.9)";
-      setStatus("Opponent disconnected");
+      ob.textContent="🔴 "+(onlineOppName||"Opponent")+" disconnected"; ob.style.color="rgba(220,80,80,.9)";
+      setStatus((onlineOppName||"Opponent")+" disconnected");
     }
   });
   db.ref("rooms/"+onlineRoom+"/"+onlineMyColor+"/connected").onDisconnect().set(false);

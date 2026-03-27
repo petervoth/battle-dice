@@ -3110,12 +3110,8 @@ function onlineStartGame(){
   const ob=document.getElementById("online-badge");
   ob.textContent="Opponent connected"; ob.style.color="rgba(40,220,140,.9)"; ob.style.display="block";
   resetGame(false); turn="white";
-  // Start timer immediately for White (goes first); Black waits for White's first move
-  if(onlineMyColor==="white") startTimer();
-  else {
-    document.getElementById('timer-white-row').classList.add('active-timer');
-    document.getElementById('timer-black-row').classList.remove('active-timer');
-  }
+  // Always start timer — both players see the active player's clock ticking from the start
+  startTimer();
 
   // Track applied move numbers to prevent double-application from repeated Firebase events
   const appliedMoves=new Set();

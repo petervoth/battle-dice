@@ -1107,6 +1107,8 @@ function executeMove(fr,fc,tr,tc,chosenPath){
 
     // Publish to Firebase BEFORE endGame (which returns early) so opponent receives the killing move
     if(gameMode==='online'){
+      // Stop timer first to bank accurate elapsed time before publishing
+      stopTimer();
       publishOnlineMove(fr,fc,tr,tc,chosenPath,piece,capturedPiece);
     }
 
@@ -1133,7 +1135,12 @@ function executeMove(fr,fc,tr,tc,chosenPath){
     stopTimer(); // ensure clean state before switching
     turn=turn==='white'?'black':'white';
     selected=null;validMoves=[];pendingMove=null;
-    startTimer();
+    // In online mode, don't start timer — wait for opponent's move to trigger it
+    if(gameMode!=='online') startTimer();
+    else {
+      document.getElementById('timer-white-row').classList.toggle('active-timer',turn==='white');
+      document.getElementById('timer-black-row').classList.toggle('active-timer',turn==='black');
+    }
     render();setStatus('');
     if(gameMode==='ai'&&turn===aiColor&&!gameOver) triggerAIMove();
     if(gameMode==='online'&&turn!==onlineMyColor&&!gameOver) setStatus('Waiting for opponent…');
@@ -3084,6 +3091,12 @@ function onlineStartGame(){
   const ob=document.getElementById("online-badge");
   ob.textContent="Opponent connected"; ob.style.color="rgba(40,220,140,.9)"; ob.style.display="block";
   resetGame(false); turn="white";
+  // Start timer immediately for White (goes first); Black waits for White's first move
+  if(onlineMyColor==="white") startTimer();
+  else {
+    document.getElementById('timer-white-row').classList.add('active-timer');
+    document.getElementById('timer-black-row').classList.remove('active-timer');
+  }
 
   // Track applied move numbers to prevent double-application from repeated Firebase events
   const appliedMoves=new Set();
@@ -3172,7 +3185,24 @@ function applyOnlineMove(m){
 
     turn=turn==="white"?"black":"white";
     selected=null; validMoves=[];
-    stopTimer(); startTimer();
+
+    // Sync opponent's banked time from the published move record
+    // then restart our own timer for our turn
+    if(m.color==='white'&&m.playerTimeWhite!=null) playerTime.white=m.playerTimeWhite;
+    if(m.color==='black'&&m.playerTimeBlack!=null) playerTime.black=m.playerTimeBlack;
+    // Update opponent's display with their authoritative banked time
+    const oppDisplayColor=m.color;
+    document.getElementById(`timer-${oppDisplayColor}`).textContent=formatTime(playerTime[oppDisplayColor]);
+
+    stopTimer();
+    // Only run our timer when it's our turn
+    if(turn===onlineMyColor) startTimer();
+    else {
+      // Show active highlight correctly
+      document.getElementById('timer-white-row').classList.toggle('active-timer',turn==='white');
+      document.getElementById('timer-black-row').classList.toggle('active-timer',turn==='black');
+    }
+
     render(); renderHistory();
     setStatus(turn===onlineMyColor?"":"Waiting for opponent…");
   });

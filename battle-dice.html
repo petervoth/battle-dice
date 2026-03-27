@@ -1098,8 +1098,25 @@ function executeMove(fr,fc,tr,tc,chosenPath){
       publishOnlineMove(fr,fc,tr,tc,chosenPath,piece,capturedPiece);
     }
 
-    if(!bk){endGame('White wins! The Black King has been captured.');return;}
-    if(!wk){endGame('Black wins! The White King has been captured.');return;}
+    if(!bk){
+      // Show cinematic for attacker in online mode too
+      if(gameMode==='online'){
+        const fakeMove={fr,fc,tr,tc,path:chosenPath,lShape:(fr!==tr&&fc!==tc)};
+        runCinematicThenEndGame({...fakeMove,color:onlineMyColor,capturedType:'king',
+          playerTimeWhite:playerTime.white,playerTimeBlack:playerTime.black});
+        return;
+      }
+      endGame('White wins! The Black King has been captured.');return;
+    }
+    if(!wk){
+      if(gameMode==='online'){
+        const fakeMove={fr,fc,tr,tc,path:chosenPath,lShape:(fr!==tr&&fc!==tc)};
+        runCinematicThenEndGame({...fakeMove,color:onlineMyColor,capturedType:'king',
+          playerTimeWhite:playerTime.white,playerTimeBlack:playerTime.black});
+        return;
+      }
+      endGame('Black wins! The White King has been captured.');return;
+    }
 
     stopTimer(); // ensure clean state before switching
     turn=turn==='white'?'black':'white';
@@ -2198,6 +2215,72 @@ function runCinematicThenExecute(move){
   },4000);
 }
 
+function runCinematicThenEndGame(m){
+  // Show the red kill cinematic for the loser in online multiplayer
+  stopTimer();
+  document.getElementById('timer-white-row').classList.remove('active-timer');
+  document.getElementById('timer-black-row').classList.remove('active-timer');
+
+  const boardEl=document.getElementById('board');
+  const cellW=boardEl.offsetWidth/9;
+  const cellH=boardEl.offsetHeight/9;
+  const boardOffX=boardEl.offsetLeft;
+  const boardOffY=boardEl.offsetTop;
+  const overlay=document.getElementById('replay-overlay');
+  overlay.innerHTML='';
+
+  function cellRect(r,c){
+    return{x:boardOffX+c*cellW,y:boardOffY+r*cellH,w:cellW,h:cellH};
+  }
+  function makeSq(rect,cls){
+    const sq=document.createElement('div');sq.className=`rp-sq ${cls}`;
+    sq.style.cssText=`left:${rect.x}px;top:${rect.y}px;width:${rect.w}px;height:${rect.h}px;`;
+    overlay.appendChild(sq);
+  }
+
+  const cr=cellRect(m.fr,m.fc);
+  const ct=cellRect(m.tr,m.tc);
+  makeSq(cr,'cinematic-origin');
+  makeSq(ct,'cinematic-dest');
+
+  // Draw red arrow
+  const COLS_N=['a','b','c','d','e','f','g','h','i'];
+  const toCoord=(r,c)=>`${COLS_N[c]}${9-r}`;
+  const rawPath=m.path;
+  const path=(Array.isArray(rawPath)?rawPath:Object.values(rawPath)).map(p=>({r:p.r,c:p.c}));
+  const fakeRecord={
+    fr:m.fr,fc:m.fc,tr:m.tr,tc:m.tc,
+    from:toCoord(m.fr,m.fc),to:toCoord(m.tr,m.tc),
+    path,lShape:m.lShape,capture:true
+  };
+  drawReplayArrow(fakeRecord,cellW,cellH,boardOffX,boardOffY);
+  const arrowSvg=document.getElementById('replay-arrow-svg');
+  arrowSvg.querySelectorAll('polyline,polygon').forEach(el=>{
+    const current=el.getAttribute('stroke')||el.getAttribute('fill')||'';
+    if(current) el.setAttribute(el.tagName==='polygon'?'fill':'stroke','rgba(255,80,60,.85)');
+    const glow=el.getAttribute('stroke-width');
+    if(glow&&parseFloat(glow)>5) el.setAttribute('stroke','rgba(255,60,60,.3)');
+  });
+
+  const label=document.getElementById('cinematic-label');
+  label.textContent='♔ Checkmate ♔';
+  label.classList.add('show');
+  const vignette=document.getElementById('cinematic-vignette');
+  vignette.classList.add('show');
+  boardEl.style.pointerEvents='none';
+
+  setTimeout(()=>{
+    overlay.innerHTML='';
+    arrowSvg.innerHTML='';
+    label.classList.remove('show');
+    vignette.classList.remove('show');
+    boardEl.style.pointerEvents='';
+    endGame(m.color==='white'
+      ? "White wins! The Black King has been captured."
+      : "Black wins! The White King has been captured.");
+  },4000);
+}
+
 // ============================================================
 // COLOR THEME ENGINE
 // ============================================================
@@ -3059,9 +3142,8 @@ function applyOnlineMove(m){
       if(m.playerTimeWhite!=null) playerTime.white=m.playerTimeWhite;
       if(m.playerTimeBlack!=null) playerTime.black=m.playerTimeBlack;
       render(); renderHistory();
-      endGame(m.color==='white'
-        ? "White wins! The Black King has been captured."
-        : "Black wins! The White King has been captured.");
+      // Show cinematic before Game Over modal, just like the AI kill
+      runCinematicThenEndGame(m);
       return;
     }
 

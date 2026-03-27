@@ -860,14 +860,15 @@ function startTimer(){
   if(gameMode==='online' && timerActivePlayer!==onlineMyColor){
     const approxStart=Date.now();
     const baseTime=playerTime[timerActivePlayer];
+    const approxPlayer=timerActivePlayer; // capture locally — timerActivePlayer will be nulled
     timerTick=setInterval(()=>{
       if(gameOver){clearInterval(timerTick);timerTick=null;return;}
       const approxTotal=baseTime+(Date.now()-approxStart);
-      document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(approxTotal);
+      document.getElementById(`timer-${approxPlayer}`).textContent=formatTime(approxTotal);
     },100);
-    document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(baseTime);
-    document.getElementById('timer-white-row').classList.toggle('active-timer',timerActivePlayer==='white');
-    document.getElementById('timer-black-row').classList.toggle('active-timer',timerActivePlayer==='black');
+    document.getElementById(`timer-${approxPlayer}`).textContent=formatTime(baseTime);
+    document.getElementById('timer-white-row').classList.toggle('active-timer',approxPlayer==='white');
+    document.getElementById('timer-black-row').classList.toggle('active-timer',approxPlayer==='black');
     // Don't set timerStart — stopTimer won't bank this approximate time
     timerActivePlayer=null;
     return;

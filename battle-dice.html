@@ -850,7 +850,20 @@ function formatTime(ms, short=false){
 }
 
 function startTimer(){
-  timerActivePlayer=turn; // capture which player this timer belongs to
+  // Always stop any existing timer first to prevent double-counting
+  stopTimer();
+  timerActivePlayer=turn;
+
+  // In online mode, only actively tick our own clock
+  // Opponent's clock is shown frozen at their last banked value — updated via Firebase
+  if(gameMode==='online' && timerActivePlayer!==onlineMyColor){
+    // Just update highlights — don't start a ticking interval
+    document.getElementById('timer-white-row').classList.toggle('active-timer',timerActivePlayer==='white');
+    document.getElementById('timer-black-row').classList.toggle('active-timer',timerActivePlayer==='black');
+    timerActivePlayer=null;
+    return;
+  }
+
   timerStart=Date.now();
   timerTick=setInterval(()=>{
     if(gameOver){stopTimer();return;}

@@ -1291,8 +1291,8 @@ function endGame(msg){
   document.getElementById('stat-white-time').textContent=formatTime(wTime);
   document.getElementById('stat-black-time').textContent=formatTime(bTime);
   const outcomesEl=document.getElementById('stat-outcomes');
-  outcomesEl.textContent=outcomesEverOn?'✓ Yes':'✗ No';
-  outcomesEl.style.color=outcomesEverOn?'rgba(80,220,120,.9)':'rgba(245,230,200,.4)';
+  outcomesEl.textContent=outcomesEverOn?'Yes':'No';
+  outcomesEl.style.color=outcomesEverOn?'rgba(220,80,80,.9)':'rgba(80,220,120,.9)';
 
   const diffEl=document.getElementById('stat-difficulty');
   if(gameMode==='ai'){
@@ -2648,7 +2648,7 @@ async function renderSavedGames(){
         :g.isOnline&&g.oppName&&g.myColor==='white'?`⚅ ${g.oppName} won`
         :'⚅ Black won');
     const modeLabel=g.mode==='ai'?`vs AI (${g.difficulty})`
-      :g.isOnline&&g.myName?`${g.myName} (${g.myColor==='white'?'White':'Black'}) vs ${g.oppName}`
+      :g.isOnline&&g.oppName?`vs ${g.oppName} (${g.myColor==='white'?'Black':'White'})`
       :'Human vs Human';
     const outcomesIcon=g.outcomesUsed
       ?'<span title="Outcomes were shown" style="color:#e05050;font-size:1.1rem;">⚄</span>'

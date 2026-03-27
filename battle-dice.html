@@ -474,6 +474,14 @@ body.replay-mode #playback-bar{
   0%,100%{box-shadow:inset 0 0 0 4px rgba(255,80,80,1),0 0 20px rgba(255,80,80,.6);}
   50%{box-shadow:inset 0 0 0 4px rgba(255,120,120,.6),0 0 60px rgba(255,80,80,1);}
 }
+@keyframes cinematic-pulse-green{
+  0%,100%{box-shadow:inset 0 0 0 4px rgba(40,200,80,.9),0 0 12px rgba(40,200,80,.4);}
+  50%{box-shadow:inset 0 0 0 4px rgba(40,200,80,.4),0 0 40px rgba(40,200,80,.9);}
+}
+@keyframes cinematic-dest-pulse-green{
+  0%,100%{box-shadow:inset 0 0 0 4px rgba(60,220,100,1),0 0 20px rgba(60,220,100,.6);}
+  50%{box-shadow:inset 0 0 0 4px rgba(100,240,140,.6),0 0 60px rgba(60,220,100,1);}
+}
 @keyframes cinematic-vignette{0%{opacity:0;}40%{opacity:1;}80%{opacity:1;}100%{opacity:0;}}
 @keyframes cinematic-text{
   0%{opacity:0;transform:translateX(-50%) scale(.7);}
@@ -483,10 +491,14 @@ body.replay-mode #playback-bar{
 }
 .rp-sq.cinematic-origin{background:rgba(220,60,40,.15);animation:cinematic-pulse .7s ease-in-out infinite;}
 .rp-sq.cinematic-dest{background:rgba(255,60,60,.2);animation:cinematic-dest-pulse .6s ease-in-out infinite;}
+.rp-sq.cinematic-origin-green{background:rgba(40,200,80,.15);animation:cinematic-pulse-green .7s ease-in-out infinite;}
+.rp-sq.cinematic-dest-green{background:rgba(60,220,100,.2);animation:cinematic-dest-pulse-green .6s ease-in-out infinite;}
 #cinematic-vignette{position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 30%,rgba(180,0,0,.55) 100%);pointer-events:none;z-index:50;animation:cinematic-vignette 4s ease forwards;display:none;}
 #cinematic-vignette.show{display:block;}
+#cinematic-vignette.green{background:radial-gradient(ellipse at center,transparent 30%,rgba(0,120,40,.55) 100%);}
 #cinematic-label{position:absolute;top:38%;left:50%;transform:translateX(-50%);font-family:'Playfair Display',serif;font-size:clamp(1.1rem,3vw,1.7rem);font-weight:900;color:#ff6060;letter-spacing:.12em;text-transform:uppercase;text-shadow:0 0 20px rgba(255,80,80,.9),0 2px 4px rgba(0,0,0,.9);white-space:nowrap;pointer-events:none;z-index:51;display:none;}
 #cinematic-label.show{display:block;animation:cinematic-text 4s ease forwards;}
+#cinematic-label.green{color:#40dc70;text-shadow:0 0 20px rgba(40,200,80,.9),0 2px 4px rgba(0,0,0,.9);}
 
 #overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:100;}
 #overlay.show{display:flex;}
@@ -1103,7 +1115,7 @@ function executeMove(fr,fc,tr,tc,chosenPath){
       if(gameMode==='online'){
         const fakeMove={fr,fc,tr,tc,path:chosenPath,lShape:(fr!==tr&&fc!==tc)};
         runCinematicThenEndGame({...fakeMove,color:onlineMyColor,capturedType:'king',
-          playerTimeWhite:playerTime.white,playerTimeBlack:playerTime.black});
+          playerTimeWhite:playerTime.white,playerTimeBlack:playerTime.black},true);
         return;
       }
       endGame('White wins! The Black King has been captured.');return;
@@ -1112,7 +1124,7 @@ function executeMove(fr,fc,tr,tc,chosenPath){
       if(gameMode==='online'){
         const fakeMove={fr,fc,tr,tc,path:chosenPath,lShape:(fr!==tr&&fc!==tc)};
         runCinematicThenEndGame({...fakeMove,color:onlineMyColor,capturedType:'king',
-          playerTimeWhite:playerTime.white,playerTimeBlack:playerTime.black});
+          playerTimeWhite:playerTime.white,playerTimeBlack:playerTime.black},true);
         return;
       }
       endGame('Black wins! The White King has been captured.');return;
@@ -2215,8 +2227,8 @@ function runCinematicThenExecute(move){
   },4000);
 }
 
-function runCinematicThenEndGame(m){
-  // Show the red kill cinematic for the loser in online multiplayer
+function runCinematicThenEndGame(m, isWinner=false){
+  // Show the kill cinematic — green for winner, red for loser
   stopTimer();
   document.getElementById('timer-white-row').classList.remove('active-timer');
   document.getElementById('timer-black-row').classList.remove('active-timer');
@@ -2240,10 +2252,12 @@ function runCinematicThenEndGame(m){
 
   const cr=cellRect(m.fr,m.fc);
   const ct=cellRect(m.tr,m.tc);
-  makeSq(cr,'cinematic-origin');
-  makeSq(ct,'cinematic-dest');
+  const originClass=isWinner?'cinematic-origin-green':'cinematic-origin';
+  const destClass=isWinner?'cinematic-dest-green':'cinematic-dest';
+  makeSq(cr,originClass);
+  makeSq(ct,destClass);
 
-  // Draw red arrow
+  // Draw arrow
   const COLS_N=['a','b','c','d','e','f','g','h','i'];
   const toCoord=(r,c)=>`${COLS_N[c]}${9-r}`;
   const rawPath=m.path;
@@ -2254,26 +2268,33 @@ function runCinematicThenEndGame(m){
     path,lShape:m.lShape,capture:true
   };
   drawReplayArrow(fakeRecord,cellW,cellH,boardOffX,boardOffY);
+
+  // Colour the arrow green for winner, red for loser
+  const arrowColor=isWinner?'rgba(60,220,80,.85)':'rgba(255,80,60,.85)';
+  const arrowGlow=isWinner?'rgba(40,200,60,.3)':'rgba(255,60,60,.3)';
   const arrowSvg=document.getElementById('replay-arrow-svg');
   arrowSvg.querySelectorAll('polyline,polygon').forEach(el=>{
     const current=el.getAttribute('stroke')||el.getAttribute('fill')||'';
-    if(current) el.setAttribute(el.tagName==='polygon'?'fill':'stroke','rgba(255,80,60,.85)');
+    if(current) el.setAttribute(el.tagName==='polygon'?'fill':'stroke',arrowColor);
     const glow=el.getAttribute('stroke-width');
-    if(glow&&parseFloat(glow)>5) el.setAttribute('stroke','rgba(255,60,60,.3)');
+    if(glow&&parseFloat(glow)>5) el.setAttribute('stroke',arrowGlow);
   });
 
   const label=document.getElementById('cinematic-label');
   label.textContent='♔ Checkmate ♔';
+  if(isWinner) label.classList.add('green'); else label.classList.remove('green');
   label.classList.add('show');
+
   const vignette=document.getElementById('cinematic-vignette');
+  if(isWinner) vignette.classList.add('green'); else vignette.classList.remove('green');
   vignette.classList.add('show');
   boardEl.style.pointerEvents='none';
 
   setTimeout(()=>{
     overlay.innerHTML='';
     arrowSvg.innerHTML='';
-    label.classList.remove('show');
-    vignette.classList.remove('show');
+    label.classList.remove('show','green');
+    vignette.classList.remove('show','green');
     boardEl.style.pointerEvents='';
     endGame(m.color==='white'
       ? "White wins! The Black King has been captured."

@@ -701,6 +701,8 @@ body.replay-mode #playback-bar{
           background:rgba(255,255,255,.05);color:var(--cream);font-family:'Crimson Text',serif;
           font-size:.95rem;outline:none;box-sizing:border-box;"
           oninput="onMainNicknameInput(this.value)">
+        <div id="nickname-hint" style="font-size:.7rem;color:rgba(220,80,80,.7);margin-top:4px;
+          display:none;">A nickname is required to play Human vs AI or Online Multiplayer</div>
       </div>
       <p class="modal-sub" style="margin-top:0;">Choose your game mode</p>
       <div class="modal-btns">
@@ -711,14 +713,14 @@ body.replay-mode #playback-bar{
           </div>
           <span class="modal-btn-desc">Pass &amp; play on one device</span>
         </button>
-        <button class="modal-btn" onclick="showDiffSelect()">
+        <button class="modal-btn" id="main-ai-btn" onclick="showDiffSelect()">
           <div class="modal-btn-top">
             <span class="modal-btn-label">Human vs AI</span>
             <span class="modal-btn-icon">♟ ⚙</span>
           </div>
           <span class="modal-btn-desc">Play against the computer</span>
         </button>
-        <button class="modal-btn" onclick="showModalView('online')">
+        <button class="modal-btn" id="main-online-btn" onclick="showModalView('online')">
           <div class="modal-btn-top">
             <span class="modal-btn-label">Online Multiplayer</span>
             <span class="modal-btn-icon">🌐 ♟</span>
@@ -751,18 +753,16 @@ body.replay-mode #playback-bar{
       <h2 class="modal-title" style="margin-bottom:4px;">🌐 Online Play</h2>
       <div id="online-lobby">
         <p class="modal-sub" style="margin-bottom:10px;">Create a room and share the code, or join a friend's room.</p>
-        <div style="margin-bottom:12px;">
-          <div style="font-size:.75rem;color:rgba(245,230,200,.5);text-transform:uppercase;
-            letter-spacing:.08em;margin-bottom:5px;">Your Nickname</div>
-          <input id="nickname-input" type="text" placeholder="Enter a nickname to play…" maxlength="20"
-            style="width:100%;padding:9px 12px;border-radius:5px;border:1px solid rgba(200,160,60,.4);
-            background:rgba(255,255,255,.06);color:var(--cream);font-family:'Crimson Text',serif;
-            font-size:1rem;outline:none;box-sizing:border-box;"
-            oninput="saveNickname(this.value);updateOnlineButtons();updateLeaderboardNickname(this.value.trim())">
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;
+          background:rgba(200,160,60,.07);border:1px solid rgba(200,160,60,.2);
+          border-radius:5px;padding:8px 12px;">
+          <span style="font-size:.72rem;color:rgba(245,230,200,.5);text-transform:uppercase;
+            letter-spacing:.08em;flex-shrink:0;">Playing as</span>
+          <span id="online-nickname-display" style="font-family:'Playfair Display',serif;
+            font-size:1rem;font-weight:700;color:var(--gold-light);flex:1;"></span>
         </div>
         <div class="modal-btns">
-          <button class="modal-btn" id="create-room-btn" onclick="onlineCreateRoom()" disabled
-            style="opacity:.4;cursor:not-allowed;">
+          <button class="modal-btn" id="create-room-btn" onclick="onlineCreateRoom()">
             <span class="modal-btn-label">🎲 Create Room</span>
             <span class="modal-btn-desc">Generate a code to share with your opponent</span>
           </button>
@@ -772,8 +772,8 @@ body.replay-mode #playback-bar{
             style="flex:1;min-width:0;padding:10px 12px;border-radius:5px;border:1px solid rgba(200,160,60,.4);
             background:rgba(255,255,255,.06);color:var(--cream);font-family:'Crimson Text',serif;
             font-size:1rem;letter-spacing:.15em;text-transform:uppercase;outline:none;">
-          <button id="join-room-btn" onclick="onlineJoinRoom()" disabled
-            style="flex-shrink:0;width:80px;padding:10px 0;opacity:.4;cursor:not-allowed;">Join</button>
+          <button id="join-room-btn" onclick="onlineJoinRoom()"
+            style="flex-shrink:0;width:80px;padding:10px 0;">Join</button>
         </div>
         <div id="online-status" style="min-height:2.4em;margin-top:10px;font-size:.88rem;
           font-style:italic;color:var(--gold-light);text-align:center;"></div>
@@ -2156,6 +2156,7 @@ function showStartModal(){
   // Auto-populate nickname from localStorage
   const mainInp=document.getElementById('main-nickname-input');
   if(mainInp) mainInp.value=loadNickname();
+  updateMainMenuButtons();
 }
 
 function showDiffSelect(){
@@ -3555,12 +3556,30 @@ function loadNickname(){
 
 function onMainNicknameInput(val){
   saveNickname(val.trim());
-  // Keep online lobby field in sync
-  const onlineInp=document.getElementById('nickname-input');
-  if(onlineInp) onlineInp.value=val;
-  updateOnlineButtons();
-  // Update nickname in Firebase leaderboard entry immediately
   updateLeaderboardNickname(val.trim());
+  updateMainMenuButtons();
+}
+
+function updateMainMenuButtons(){
+  const name=loadNickname();
+  const hasName=name.length>0;
+  const aiBtn=document.getElementById('main-ai-btn');
+  const onlineBtn=document.getElementById('main-online-btn');
+  const hint=document.getElementById('nickname-hint');
+  if(aiBtn){
+    aiBtn.disabled=!hasName;
+    aiBtn.style.opacity=hasName?'1':'0.4';
+    aiBtn.style.cursor=hasName?'pointer':'not-allowed';
+  }
+  if(onlineBtn){
+    onlineBtn.disabled=!hasName;
+    onlineBtn.style.opacity=hasName?'1':'0.4';
+    onlineBtn.style.cursor=hasName?'pointer':'not-allowed';
+  }
+  if(hint) hint.style.display=hasName?'none':'block';
+  // Update online lobby nickname display
+  const display=document.getElementById('online-nickname-display');
+  if(display) display.textContent=name||'—';
 }
 
 function updateLeaderboardNickname(name){
@@ -3571,33 +3590,14 @@ function updateLeaderboardNickname(name){
   }).catch(e=>console.warn('Nickname update failed:',e.message));
 }
 
-function updateOnlineButtons(){
-  const nicknameEl=document.getElementById('nickname-input');
-  const hasName=nicknameEl?nicknameEl.value.trim().length>0:false;
-  const createBtn=document.getElementById('create-room-btn');
-  const joinBtn=document.getElementById('join-room-btn');
-  if(createBtn){
-    createBtn.disabled=!hasName;
-    createBtn.style.opacity=hasName?'1':'0.4';
-    createBtn.style.cursor=hasName?'pointer':'not-allowed';
-  }
-  if(joinBtn){
-    joinBtn.disabled=!hasName;
-    joinBtn.style.opacity=hasName?'1':'0.4';
-    joinBtn.style.cursor=hasName?'pointer':'not-allowed';
-  }
-}
-
 function resetOnlineLobbyUI(){
   setOnlineStatus('');
   document.getElementById('room-code-display').style.display='none';
   const inp=document.getElementById('join-code-input');
   if(inp) inp.value='';
-  // Auto-populate nickname from localStorage (stays in sync with main menu field)
-  const nicknameInp=document.getElementById('nickname-input');
-  if(nicknameInp) nicknameInp.value=loadNickname();
-  // Update button states based on whether a nickname is present
-  updateOnlineButtons();
+  // Show current nickname in the online lobby display
+  const display=document.getElementById('online-nickname-display');
+  if(display) display.textContent=loadNickname()||'—';
 }
 
 function copyRoomCode(){
@@ -3614,8 +3614,7 @@ async function onlineCreateRoom(){
   try{
     await ensureFirebase();
     const db=window._firebaseDB;
-    const myName=document.getElementById("nickname-input").value.trim()||"Player";
-    saveNickname(myName);
+    const myName=loadNickname()||"Player";
     onlineMyName=myName; onlineOppName="";
     const code=generateRoomCode();
     onlineRoom=code; onlineMyColor="white";
@@ -3650,7 +3649,6 @@ async function onlineJoinRoom(){
     const data=snap.val();
     if(data.state!=="waiting"){setOnlineStatus("This room is no longer available.","rgba(220,80,80,.9)");return;}
     if(data.black&&data.black.connected){setOnlineStatus("Room is full.","rgba(220,80,80,.9)");return;}
-    const myName=document.getElementById("nickname-input").value.trim()||"Player";
     saveNickname(myName);
     onlineMyName=myName;
     onlineOppName=data.white&&data.white.name?data.white.name:"White";

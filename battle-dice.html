@@ -2031,12 +2031,22 @@ function replayMove(idx){
 
   // Highlight the history entry
   const entries=document.querySelectorAll('.move-entry');
-  // History is displayed newest-first, so reverse the index
   const totalEntries=entries.length;
   const forwardIdx=Math.floor(idx/2);
   const reversedIdx=totalEntries-1-forwardIdx;
   const entryEl=entries[reversedIdx];
-  if(entryEl) entryEl.classList.add('replaying');
+  if(entryEl){
+    entryEl.classList.add('replaying');
+    const container=document.getElementById('move-history');
+    if(container){
+      const entryTop=entryEl.offsetTop;
+      const entryBottom=entryTop+entryEl.offsetHeight;
+      const visTop=container.scrollTop;
+      const visBottom=visTop+container.clientHeight;
+      if(entryTop<visTop) container.scrollTop=entryTop-4;
+      else if(entryBottom>visBottom) container.scrollTop=entryBottom-container.clientHeight+4;
+    }
+  }
 
   // Get board dimensions to position overlays correctly
   const boardEl=document.getElementById('board');
@@ -2058,11 +2068,11 @@ function replayMove(idx){
   const overlay=document.getElementById('replay-overlay');
   overlay.innerHTML='';
 
-  // Origin square highlight
-  const fromCoords=coordToRC(m.from);
-  const toCoords=coordToRC(m.to);
-  const cr=cellRect(fromCoords.r, fromCoords.c);
-  const ct=cellRect(toCoords.r,  toCoords.c);
+  // Origin square highlight — use fr/fc/tr/tc directly (from/to strings may be empty)
+  const fromRC = {r: m.fr, c: m.fc};
+  const toRC   = {r: m.tr, c: m.tc};
+  const cr=cellRect(fromRC.r, fromRC.c);
+  const ct=cellRect(toRC.r,   toRC.c);
 
   function makeSq(rect, cls){
     const sq=document.createElement('div');
@@ -3831,8 +3841,8 @@ function showReplayOverlay(m){
     sq.style.cssText=`left:${boardOffX+c*cellW}px;top:${boardOffY+r*cellH}px;width:${cellW}px;height:${cellH}px;`;
     overlay.appendChild(sq);
   }
-  const fromRC=coordToRC(m.from);
-  const toRC=coordToRC(m.to);
+  const fromRC={r:m.fr, c:m.fc};
+  const toRC={r:m.tr, c:m.tc};
   makeSq(fromRC.r,fromRC.c,'origin');
   makeSq(toRC.r,toRC.c,'dest');
   drawReplayArrow(m,cellW,cellH,boardOffX,boardOffY);
@@ -3893,7 +3903,16 @@ function highlightReplayHistoryEntry(moveIdx){
   const entryEl=entries[reversedIdx];
   if(entryEl){
     entryEl.classList.add('replaying');
-    entryEl.scrollIntoView({block:'nearest',behavior:'smooth'});
+    // Scroll within the history container only — don't use scrollIntoView which scrolls the page
+    const container=document.getElementById('move-history');
+    if(container){
+      const entryTop=entryEl.offsetTop;
+      const entryBottom=entryTop+entryEl.offsetHeight;
+      const visTop=container.scrollTop;
+      const visBottom=visTop+container.clientHeight;
+      if(entryTop<visTop) container.scrollTop=entryTop-4;
+      else if(entryBottom>visBottom) container.scrollTop=entryBottom-container.clientHeight+4;
+    }
   }
 }
 

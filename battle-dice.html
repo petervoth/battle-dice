@@ -3190,7 +3190,49 @@ function kingAlive(b, color){
 }
 
 // Evaluation function: positive = good for black (AI), negative = good for white
+// ============================================================
+// PIECE-SQUARE TABLES (Expert AI only — depth >= 4)
+// All tables are from Black's perspective (row 0 = Black's back rank).
+// White values are mirrored vertically (row 8-r).
+// Values are centipawn bonuses on top of material score.
+// ============================================================
+
+// DICE PST — rewards centre control and advancement
+const PST_DICE = [
+  [ 0,  2,  4,  4,  4,  4,  4,  2,  0],
+  [ 2,  6,  8,  9,  9,  9,  8,  6,  2],
+  [ 4,  8, 12, 14, 14, 14, 12,  8,  4],
+  [ 4,  9, 14, 18, 20, 18, 14,  9,  4],
+  [ 4,  9, 14, 20, 24, 20, 14,  9,  4],
+  [ 6, 10, 16, 22, 26, 22, 16, 10,  6],
+  [ 8, 12, 18, 24, 28, 24, 18, 12,  8],
+  [10, 14, 20, 26, 30, 26, 20, 14, 10],
+  [12, 16, 22, 28, 32, 28, 22, 16, 12],
+];
+
+// KING PST — stay back early, penalise forward exposure
+const PST_KING = [
+  [20, 18, 14, 10, 8, 10, 14, 18, 20],
+  [10,  8,  6,  4, 2,  4,  6,  8, 10],
+  [ 0, -2, -4, -6,-8, -6, -4, -2,  0],
+  [-6, -8,-10,-12,-14,-12,-10, -8, -6],
+  [-12,-14,-16,-18,-20,-18,-16,-14,-12],
+  [-18,-20,-22,-24,-26,-24,-22,-20,-18],
+  [-24,-26,-28,-30,-32,-30,-28,-26,-24],
+  [-30,-32,-34,-36,-38,-36,-34,-32,-30],
+  [-36,-38,-40,-42,-44,-42,-40,-38,-36],
+];
+
+function pstScore(piece, r, c){
+  // Mirror row for white (white's back rank is row 8)
+  const row = piece.color==='white' ? (8-r) : r;
+  if(piece.type==='king') return PST_KING[row][c];
+  return PST_DICE[row][c];
+}
+
+// Enhanced evaluate with PSTs active at Expert depth
 function evaluate(b){
+  const usesPST = aiDepth >= 4;
   let score=0;
   let wPieces=0, bPieces=0;
 
@@ -3200,22 +3242,23 @@ function evaluate(b){
     if(p.color==='black'){
       if(p.type==='king'){
         score+=10000;
+        if(usesPST) score+=pstScore(p,r,c);
         bPieces++;
       } else {
-        // Piece value: base + top face value (higher top = more mobile)
         score += 100 + p.ori.top * 8;
-        // Advancement bonus: pieces closer to enemy back rank
         score += (8-r) * 3;
+        if(usesPST) score+=pstScore(p,r,c);
         bPieces++;
       }
     } else {
       if(p.type==='king'){
         score-=10000;
+        if(usesPST) score-=pstScore(p,r,c);
         wPieces++;
       } else {
         score -= 100 + p.ori.top * 8;
-        // White advances toward row 0
         score -= r * 3;
+        if(usesPST) score-=pstScore(p,r,c);
         wPieces++;
       }
     }
@@ -3227,7 +3270,24 @@ function evaluate(b){
   const bMoves=getAllMoves(b,'black').length;
   const wMoves=getAllMoves(b,'white').length;
   board=savedBoard;
-  score += (bMoves - wMoves) * 4;
+
+  // Expert gets a stronger mobility weight too
+  const mobilityWeight = usesPST ? 6 : 4;
+  score += (bMoves - wMoves) * mobilityWeight;
+
+  // Expert: bonus for dice face value diversity (avoid clustering same values)
+  if(usesPST){
+    const bFaces=new Set(), wFaces=new Set();
+    for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+      const p=b[r][c];
+      if(p&&p.type!=='king'){
+        if(p.color==='black') bFaces.add(p.ori.top);
+        else wFaces.add(p.ori.top);
+      }
+    }
+    score += bFaces.size * 3;
+    score -= wFaces.size * 3;
+  }
 
   return score;
 }
@@ -3247,6 +3307,13 @@ function scoreMoveOrder(b, m){
   const piece=b[m.fr][m.fc];
   if(piece&&piece.color==='black') s+=(8-m.tr)*2;
   else if(piece) s+=m.tr*2;
+  // Expert: reward moves that improve PST score
+  if(aiDepth>=4 && piece){
+    const pstBefore=pstScore(piece,m.fr,m.fc);
+    const pstAfter=pstScore(piece,m.tr,m.tc);
+    const delta=pstAfter-pstBefore;
+    s += piece.color==='black' ? delta : -delta;
+  }
   return s;
 }
 

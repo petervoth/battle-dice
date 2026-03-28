@@ -838,6 +838,15 @@ body.replay-mode #playback-bar{
   </div>
 </div>
 
+<!-- SPECTATOR BANNER -->
+<div id="spectator-banner" style="display:none;position:fixed;top:0;left:0;right:0;
+  background:rgba(40,100,180,.92);border-bottom:1px solid rgba(100,180,255,.4);
+  padding:6px 16px;z-index:80;display:none;align-items:center;justify-content:center;gap:10px;">
+  <span style="font-size:1rem;">👁</span>
+  <span id="spectator-banner-text" style="font-family:'Crimson Text',serif;font-size:.9rem;
+    color:rgba(200,230,255,.95);">Spectating</span>
+</div>
+
 <!-- ONLINE DRAW OFFER BANNER -->
 <div id="draw-banner" style="display:none;position:fixed;bottom:24px;left:50%;
   transform:translateX(-50%);z-index:150;background:var(--modal-bg1);
@@ -1014,6 +1023,12 @@ body.replay-mode #playback-bar{
             font-weight:900;letter-spacing:.25em;color:var(--gold-light);cursor:pointer;"
             onclick="copyRoomCode()" title="Click to copy"></div>
           <div style="font-size:.72rem;color:rgba(245,230,200,.35);margin-top:2px;">click to copy</div>
+          <button id="copy-spectate-btn" onclick="copySpectateLink()"
+            style="margin-top:8px;font-size:.75rem;padding:5px 12px;
+            border:1px solid rgba(100,180,255,.3);background:rgba(100,180,255,.07);
+            color:rgba(150,210,255,.8);border-radius:4px;cursor:pointer;">
+            👁 Copy Spectate Link
+          </button>
         </div>
       </div>
       <button class="modal-btn" style="margin-top:14px;" onclick="onlineCancelAndBack()">← Back</button>
@@ -1029,7 +1044,12 @@ body.replay-mode #playback-bar{
     <!-- VIEW: STATISTICS -->
     <div id="modal-view-stats" style="display:none;">
       <h2 class="modal-title" style="margin-bottom:8px;">📊 Statistics</h2>
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button class="pb-speed-btn active-speed" id="stats-tab-btn" onclick="switchStatsTab('stats')">Stats</button>
+        <button class="pb-speed-btn" id="achieve-tab-btn" onclick="switchStatsTab('achievements')">🏆 Achievements</button>
+      </div>
       <div id="stats-content"></div>
+      <div id="achievements-content" style="display:none;"></div>
       <button class="modal-btn" style="margin-top:10px;" onclick="showModalView('leaderboard')">
         <div class="modal-btn-top">
           <span class="modal-btn-label">🏆 Leaderboard</span>
@@ -1534,6 +1554,12 @@ function executeMove(fr,fc,tr,tc,chosenPath){
   const piece=board[fr][fc];
   const target=board[tr][tc];
 
+  // First move milestone
+  if(!firstMoveMade) checkMilestoneMove();
+
+  // First capture milestone
+  if(target) checkMilestoneCapture();
+
   // First move of the game — lock in outcomes state
   if(!firstMoveMade){
     firstMoveMade=true;
@@ -1844,6 +1870,11 @@ function endGame(msg){
 
   // Auto-save the completed game
   autoSaveGame(winnerColor);
+
+  // Check achievements
+  checkAchievements(winnerColor, gameMode, aiDepth, rounds, humanTimeSec, outcomesEverOn,
+    winnerColor?captured[winnerColor==='white'?'black':'white'].filter(p=>p.type!=='king').length:0,
+    winnerColor?calculateScore(winnerColor,gameMode,aiDepth,rounds,humanTimeSec,outcomesEverOn):null);
 }
 
 // ============================================================
@@ -2506,6 +2537,325 @@ function startGame(mode, depth){
   resetGame();
 }
 
+let isSpectating=false;
+
+function copySpectateLink(){
+  const code=document.getElementById('room-code-text').textContent;
+  if(!code) return;
+  const url=`${SHARE_BASE_URL}#watch=${code}`;
+  const btn=document.getElementById('copy-spectate-btn');
+  copyToClipboard(url,
+    ()=>{
+      if(btn){ const orig=btn.innerHTML; btn.innerHTML='✓ Copied!';
+        setTimeout(()=>btn.innerHTML=orig,2000); }
+    },
+    ()=>{ prompt('Copy spectate link:',url); }
+  );
+}
+
+async function checkSpectateHash(){
+  const hash=window.location.hash;
+  if(!hash.startsWith('#watch=')) return false;
+  const code=hash.slice(7).toUpperCase();
+  if(!code||code.length!==6) return false;
+
+  // Hide main menu, show loading
+  document.getElementById('start-modal').classList.add('hidden');
+
+  // Wait for Firebase
+  let attempts=0;
+  while(!window._firebaseDB&&attempts<20){ await new Promise(r=>setTimeout(r,250)); attempts++; }
+  if(!window._firebaseDB){
+    alert('Could not connect to Firebase. Please try again.');
+    showStartModal(); return true;
+  }
+
+  isSpectating=true;
+  onlineRoom=code;
+  unlockAchievement('audience');
+  startSpectating(code);
+  return true;
+}
+
+function startSpectating(code){
+  const db=window._firebaseDB;
+
+  // Read room info for player names and time control
+  db.ref('rooms/'+code).once('value').then(snap=>{
+    const room=snap.val();
+    if(!room){
+      showSpectatorBanner('Room not found.');
+      return;
+    }
+    const whiteName=(room.white&&room.white.name)||'White';
+    const blackName=(room.black&&room.black.name)||'Black';
+    onlineMyName=''; onlineOppName='';
+
+    // Set up time control display if active
+    if(room.timeControl&&room.timeControl.enabled){
+      timeControlActive=true;
+      timeControlLimitMs=room.timeControl.limitMs||180000;
+    }
+
+    showSpectatorBanner(`${whiteName} (White) vs ${blackName} (Black)`);
+
+    // Init board
+    gameMode='online'; gameStarted=true;
+    resetGame(false); turn='white';
+
+    // Lock board — spectators can't interact
+    document.getElementById('board').style.pointerEvents='none';
+    // Hide side panel controls irrelevant to spectators
+    document.getElementById('btn-outcomes').style.display='none';
+    document.getElementById('btn-draw').style.display='none';
+    document.getElementById('rematch-btn') && (document.getElementById('rematch-btn').style.display='none');
+
+    // Update mode badge
+    document.getElementById('mode-badge').textContent=`👁 ${whiteName} vs ${blackName}`;
+
+    const appliedMoves=new Set();
+
+    // Listen for moves and apply them
+    db.ref('rooms/'+code+'/moves').on('value',snap=>{
+      const moves=snap.val(); if(!moves) return;
+      Object.values(moves).sort((a,b)=>a.n-b.n).forEach(m=>{
+        if(!appliedMoves.has(m.n)&&m.n>moveHistory.length){
+          appliedMoves.add(m.n);
+          applySpectatorMove(m);
+        }
+      });
+    });
+
+    // Listen for game state changes
+    db.ref('rooms/'+code+'/state').on('value',snap=>{
+      if(snap.val()==='waiting'){
+        setStatus('Waiting for game to start…');
+      }
+    });
+
+    startTimer();
+  });
+}
+
+function applySpectatorMove(m){
+  if(gameOver) return;
+  const piece=board[m.fr]?.[m.fc];
+  if(!piece) return;
+  const rawPath=m.path;
+  const path=(Array.isArray(rawPath)?rawPath:Object.values(rawPath)).map(p=>({r:p.r,c:p.c}));
+
+  animatePieceMove(piece,path,()=>{
+    if(m.boardSnapshot){
+      const snap=Array.isArray(m.boardSnapshot)?m.boardSnapshot:Object.values(m.boardSnapshot);
+      for(let r=0;r<9;r++) for(let c=0;c<9;c++) board[r][c]=null;
+      snap.forEach(p=>{
+        board[p.r][p.c]={color:p.color,type:p.type,
+          ori:{top:p.top,front:p.front,right:p.right},
+          id:p.color+(p.type==='king'?'k':p.top)+'_'+p.r+'_'+p.c};
+      });
+      if(m.capturedWhite!=null){
+        const cw=Array.isArray(m.capturedWhite)?m.capturedWhite:Object.values(m.capturedWhite);
+        captured.white=cw.map(p=>({color:p.color,type:p.type,ori:{top:p.top,front:2,right:3}}));
+      }
+      if(m.capturedBlack!=null){
+        const cb=Array.isArray(m.capturedBlack)?m.capturedBlack:Object.values(m.capturedBlack);
+        captured.black=cb.map(p=>({color:p.color,type:p.type,ori:{top:p.top,front:2,right:3}}));
+      }
+    } else {
+      if(m.finalOri) piece.ori={...m.finalOri};
+      board[m.tr][m.tc]=piece; board[m.fr][m.fc]=null;
+    }
+    if(m.capture) playSoundCapture(); else playSoundLand();
+    moveHistory.push(m);
+
+    // Check for king capture
+    if(m.capture&&m.capturedType==='king'){
+      if(m.playerTimeWhite!=null) playerTime.white=m.playerTimeWhite;
+      if(m.playerTimeBlack!=null) playerTime.black=m.playerTimeBlack;
+      render(); renderHistory();
+      const winner=m.color==='white'?'White':'Black';
+      endGame(`${winner} wins! The ${m.color==='white'?'Black':'White'} King has been captured.`);
+      return;
+    }
+
+    turn=turn==='white'?'black':'white';
+    selected=null; validMoves=[];
+
+    // Sync times
+    if(m.color==='white'&&m.playerTimeWhite!=null) playerTime.white=m.playerTimeWhite;
+    if(m.color==='black'&&m.playerTimeBlack!=null) playerTime.black=m.playerTimeBlack;
+
+    stopTimer(); startTimer();
+    render(); renderHistory();
+    setStatus(`${turn.charAt(0).toUpperCase()+turn.slice(1)}'s turn`);
+  });
+}
+
+function showSpectatorBanner(text){
+  const banner=document.getElementById('spectator-banner');
+  document.getElementById('spectator-banner-text').textContent=text;
+  banner.style.display='flex';
+  // Push game container down to not overlap banner
+  document.getElementById('game-container').style.marginTop='36px';
+}
+
+// ============================================================
+// ACHIEVEMENT SYSTEM
+// ============================================================
+const ACHIEVEMENTS=[
+  // --- FIRST MILESTONES (one-time, binary) ---
+  {id:'first_move',    category:'milestone', icon:'🎲', name:'First Move',    desc:'Make your first move ever',               once:true},
+  {id:'first_blood',   category:'milestone', icon:'⚔️', name:'First Blood',   desc:'Capture your first piece',                once:true},
+  {id:'first_win',     category:'milestone', icon:'👑', name:'First Win',     desc:'Win your first game (any mode)',           once:true},
+  {id:'ai_slayer',     category:'milestone', icon:'🤖', name:'AI Slayer',     desc:'Beat the AI for the first time',          once:true},
+  {id:'connected',     category:'milestone', icon:'🌐', name:'Connected',     desc:'Complete your first online game',         once:true},
+  // --- SKILL-BASED (counted, every time) ---
+  {id:'speed_demon',   category:'skill',     icon:'⚡', name:'Speed Demon',   desc:'Win with your total time under 60 seconds'},
+  {id:'blitz',         category:'skill',     icon:'🏃', name:'Blitz',         desc:'Win in 5 rounds or fewer'},
+  {id:'clean_sweep',   category:'skill',     icon:'🎯', name:'Clean Sweep',   desc:'Win without Outcomes ever visible'},
+  {id:'flawless',      category:'skill',     icon:'🔥', name:'Flawless',      desc:'Win without losing a single piece'},
+  {id:'grandmaster',   category:'skill',     icon:'🧠', name:'Grandmaster',   desc:'Beat Expert AI'},
+  // --- PROGRESSION (counted, every time) ---
+  {id:'on_a_roll',     category:'progress',  icon:'📈', name:'On a Roll',     desc:'Win 3 games in a row (any mode)'},
+  {id:'century',       category:'progress',  icon:'🏆', name:'Century',       desc:'Play 100 total games'},
+  {id:'high_scorer',   category:'progress',  icon:'⭐', name:'High Scorer',   desc:'Score over 2000 points in a single AI game'},
+  // --- ONLINE ---
+  {id:'gentleman',     category:'online',    icon:'🤝', name:'Gentleman',     desc:'Offer and have a draw accepted'},
+  {id:'rematched',     category:'online',    icon:'🔄', name:'Rematched',     desc:'Play a rematch against the same opponent'},
+  {id:'audience',      category:'online',    icon:'👁', name:'Audience',      desc:'Watch a game as a spectator',            once:true},
+];
+
+function loadAchievements(){
+  try{ return JSON.parse(localStorage.getItem('battleDiceAchievements'))||{}; }
+  catch{ return {}; }
+}
+
+function saveAchievements(data){
+  try{ localStorage.setItem('battleDiceAchievements',JSON.stringify(data)); }catch{}
+}
+
+function unlockAchievement(id){
+  const def=ACHIEVEMENTS.find(a=>a.id===id);
+  if(!def) return;
+  const data=loadAchievements();
+
+  if(def.once){
+    // One-time milestone — only trigger toast on first unlock
+    if(data[id]) return;
+    data[id]={count:1, firstAt:Date.now()};
+    saveAchievements(data);
+    showAchievementToast(def, 1);
+  } else {
+    // Counted achievement
+    const prev=data[id]||{count:0, firstAt:null};
+    const newCount=prev.count+1;
+    data[id]={count:newCount, firstAt:prev.firstAt||Date.now(), lastAt:Date.now()};
+    saveAchievements(data);
+    showAchievementToast(def, newCount);
+  }
+
+  // Sync to Firebase
+  if(window._firebaseUID&&window._firebaseDB){
+    window._firebaseDB.ref(`leaderboard/${window._firebaseUID}/achievements/${id}`)
+      .set(data[id]).catch(()=>{});
+  }
+}
+
+let _toastQueue=[];
+let _toastShowing=false;
+
+function showAchievementToast(def, count){
+  _toastQueue.push({def, count});
+  if(!_toastShowing) processToastQueue();
+}
+
+function processToastQueue(){
+  if(!_toastQueue.length){ _toastShowing=false; return; }
+  _toastShowing=true;
+  const {def, count}=_toastQueue.shift();
+
+  let toast=document.getElementById('achievement-toast');
+  if(!toast){
+    toast=document.createElement('div');
+    toast.id='achievement-toast';
+    toast.style.cssText=`position:fixed;bottom:24px;right:24px;z-index:400;
+      background:var(--modal-bg1);border:1px solid rgba(200,160,60,.5);
+      border-radius:10px;padding:12px 16px;min-width:220px;max-width:280px;
+      box-shadow:0 4px 24px rgba(0,0,0,.7);transform:translateX(120%);
+      transition:transform .4s cubic-bezier(.17,.89,.32,1.49);pointer-events:none;`;
+    document.body.appendChild(toast);
+  }
+
+  const countLabel=!def.once&&count>1?`<span style="color:rgba(200,160,60,.6);font-size:.75rem;"> ×${count}</span>`:'';
+  toast.innerHTML=`
+    <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;
+      color:rgba(200,160,60,.6);margin-bottom:4px;">🏆 Achievement Unlocked!</div>
+    <div style="font-size:1.1rem;margin-bottom:2px;">${def.icon}
+      <span style="font-family:'Playfair Display',serif;font-weight:700;
+        color:var(--gold-light);">${def.name}</span>${countLabel}</div>
+    <div style="font-size:.78rem;color:rgba(245,230,200,.55);">${def.desc}</div>
+  `;
+
+  // Slide in
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    toast.style.transform='translateX(0)';
+    playSoundSelect();
+  }));
+
+  // Hold then slide out
+  setTimeout(()=>{
+    toast.style.transform='translateX(120%)';
+    setTimeout(()=>processToastQueue(), 450);
+  },3500);
+}
+
+// Consecutive win tracking
+function getConsecutiveWins(){ try{ return parseInt(localStorage.getItem('bdConsecWins'))||0; }catch{ return 0; } }
+function setConsecutiveWins(n){ try{ localStorage.setItem('bdConsecWins',n); }catch{} }
+
+// Check all achievements after a game ends
+function checkAchievements(winnerColor, mode, depth, rounds, humanTimeSec, outcomesUsed, capturedCount, score){
+  const data=loadAchievements();
+  const allStats=loadStats();
+  const totalGames=(allStats.totalGames||0);
+
+  // MILESTONES
+  if(!data['first_win']&&winnerColor) unlockAchievement('first_win');
+  if(!data['ai_slayer']&&mode==='ai'&&winnerColor==='white') unlockAchievement('ai_slayer');
+  if(!data['connected']&&mode==='online') unlockAchievement('connected');
+
+  if(winnerColor){
+    // SKILL — only on wins
+    const humanMs=humanTimeSec*1000;
+    if(humanMs>0&&humanMs<60000) unlockAchievement('speed_demon');
+    if(rounds<=5) unlockAchievement('blitz');
+    if(!outcomesUsed) unlockAchievement('clean_sweep');
+    if(capturedCount===0) unlockAchievement('flawless');
+    if(mode==='ai'&&depth===4) unlockAchievement('grandmaster');
+    if(score&&score>2000) unlockAchievement('high_scorer');
+
+    // Consecutive wins
+    const streak=getConsecutiveWins()+1;
+    setConsecutiveWins(streak);
+    if(streak>=3) unlockAchievement('on_a_roll');
+  } else {
+    setConsecutiveWins(0);
+  }
+
+  // PROGRESSION — total games
+  if(totalGames>0&&totalGames%100===0) unlockAchievement('century');
+}
+
+// Check first_move and first_blood during gameplay
+function checkMilestoneMove(){
+  const data=loadAchievements();
+  if(!data['first_move']) unlockAchievement('first_move');
+}
+function checkMilestoneCapture(){
+  const data=loadAchievements();
+  if(!data['first_blood']) unlockAchievement('first_blood');
+}
+
 // ============================================================
 // ONLINE DRAW OFFER SYSTEM
 // ============================================================
@@ -2577,6 +2927,7 @@ function listenForDraw(){
       resetDrawBtn();
       // Clean up draw node then end game as draw
       db.ref('rooms/'+onlineRoom+'/draw').remove();
+      unlockAchievement('gentleman');
       endGame('Draw! The players have agreed to a draw.');
     } else if(data.status==='declined'){
       hideDrawBanner();
@@ -2697,6 +3048,7 @@ function listenForRematch(){
       hideRematchBanner();
       // Both players start new game — colours swap
       const newMyColor=onlineMyColor==='white'?'black':'white';
+      unlockAchievement('rematched');
       startOnlineRematch(newMyColor);
     } else if(data.status==='declined'){
       hideRematchBanner();
@@ -3898,7 +4250,7 @@ function showModalView(view){
     if(el) el.style.display=(v===view)?'block':'none';
   });
   if(view==='saved') renderSavedGames();
-  if(view==='stats') renderStatsView();
+  if(view==='stats'){ switchStatsTab('stats'); renderStatsView(); }
   if(view==='online') resetOnlineLobbyUI();
   if(view==='leaderboard') renderLeaderboard('Easy');
   if(view==='ai') renderDiffButtons();
@@ -4039,6 +4391,56 @@ async function replayFromSave(id){
   document.getElementById('start-modal').classList.add('hidden');
   showModalView('main');
   startFullReplay();
+}
+
+function switchStatsTab(tab){
+  document.getElementById('stats-content').style.display=tab==='stats'?'':'none';
+  document.getElementById('achievements-content').style.display=tab==='achievements'?'':'none';
+  document.getElementById('stats-tab-btn').classList.toggle('active-speed',tab==='stats');
+  document.getElementById('achieve-tab-btn').classList.toggle('active-speed',tab==='achievements');
+  if(tab==='achievements') renderAchievements();
+}
+
+function renderAchievements(){
+  const el=document.getElementById('achievements-content');
+  const data=loadAchievements();
+  const categories=[
+    {key:'milestone', label:'🎯 First Milestones'},
+    {key:'skill',     label:'⚔️ Skill'},
+    {key:'progress',  label:'📈 Progression'},
+    {key:'online',    label:'🌐 Online'},
+  ];
+
+  let html='';
+  categories.forEach(cat=>{
+    const list=ACHIEVEMENTS.filter(a=>a.category===cat.key);
+    html+=`<div class="stats-section"><div class="stats-section-title">${cat.label}</div>`;
+    list.forEach(a=>{
+      const earned=data[a.id];
+      const count=earned?earned.count:0;
+      const unlocked=count>0;
+      const countBadge=(!a.once&&count>1)?`<span style="font-size:.7rem;color:rgba(200,160,60,.6);margin-left:3px;">×${count}</span>`:'';
+      html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 2px;
+        opacity:${unlocked?'1':'0.38'};">
+        <span style="font-size:1.2rem;flex-shrink:0;">${a.icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.85rem;font-weight:600;color:${unlocked?'var(--gold-light)':'rgba(245,230,200,.5)'};">
+            ${a.name}${countBadge}
+          </div>
+          <div style="font-size:.72rem;color:rgba(245,230,200,.4);">${a.desc}</div>
+        </div>
+        ${unlocked?'<span style="color:rgba(200,160,60,.7);font-size:.9rem;">✓</span>':''}
+      </div>`;
+    });
+    html+='</div>';
+  });
+
+  const total=ACHIEVEMENTS.length;
+  const earned=ACHIEVEMENTS.filter(a=>data[a.id]&&data[a.id].count>0).length;
+  html=`<div style="text-align:center;font-size:.78rem;color:rgba(200,160,60,.6);
+    margin-bottom:8px;">${earned} / ${total} unlocked</div>`+html;
+
+  el.innerHTML=html;
 }
 
 async function renderStatsView(){
@@ -4782,6 +5184,11 @@ function onlineLeaveGame(){
   hideRematchBanner();
   hideDrawBanner();
   timeControlActive=false;
+  isSpectating=false;
+  // Hide spectator banner
+  const sb=document.getElementById('spectator-banner');
+  if(sb) sb.style.display='none';
+  document.getElementById('game-container').style.marginTop='';
   // Hide draw button
   const drawBtn=document.getElementById('btn-draw');
   if(drawBtn) drawBtn.style.display='none';
@@ -4808,9 +5215,12 @@ function matchHistoryHeight(){
     }
   }
 }
-// Check for shared replay link first — if found, show landing instead of main menu
+// Check for shared replay link or spectate link first
 checkShareHash().then(isShare=>{
-  if(!isShare) showStartModal();
+  if(isShare) return;
+  return checkSpectateHash();
+}).then(isSpectate=>{
+  if(!isSpectate) showStartModal();
 });
 matchHistoryHeight();
 updateSoundBtn();

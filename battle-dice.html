@@ -935,8 +935,10 @@ function makeOri(desiredTop,desiredFront){
 // ============================================================
 const BACK_TOPS=[1,2,5,6,null,6,5,2,1];
 let board=[],turn='white',selected=null,validMoves=[],captured={white:[],black:[]},gameOver=false;
-let showOutcomes=false;
-let outcomesEverOn=false;
+let showOutcomes=true;
+let outcomesEverOn=true;      // tracks if outcomes were on at any point after first move
+let outcomesHiddenClean=false; // true if player hid outcomes before first move and kept them hidden
+let firstMoveMade=false;       // flips true on first move of the game
 let moveHistory=[];
 
 // Timer state
@@ -1051,10 +1053,21 @@ function hideRules(){document.getElementById('rules-modal').classList.add('hidde
 
 function toggleOutcomes(){
   showOutcomes=!showOutcomes;
-  if(showOutcomes) outcomesEverOn=true;
   const btn=document.getElementById('btn-outcomes');
   btn.textContent=showOutcomes?'⚄ Hide Outcomes':'⚄ Show Outcomes';
   btn.classList.toggle('active-btn',showOutcomes);
+
+  if(!firstMoveMade){
+    // Before first move: hiding outcomes starts a clean run; showing cancels it
+    outcomesHiddenClean=!showOutcomes;
+    outcomesEverOn=showOutcomes;
+  } else {
+    // After first move: turning outcomes back on taints the run
+    if(showOutcomes){
+      outcomesEverOn=true;
+      outcomesHiddenClean=false;
+    }
+  }
   render();
 }
 
@@ -1230,6 +1243,16 @@ function executeMove(fr,fc,tr,tc,chosenPath){
 
   const piece=board[fr][fc];
   const target=board[tr][tc];
+
+  // First move of the game — lock in outcomes state
+  if(!firstMoveMade){
+    firstMoveMade=true;
+    if(showOutcomes){
+      outcomesEverOn=true;
+      outcomesHiddenClean=false;
+    }
+    // If outcomes already hidden before first move, outcomesHiddenClean stays true
+  }
 
   // Play roll sound at start of move
 
@@ -2174,14 +2197,15 @@ function rematch(){
 // ============================================================
 function resetGame(randomiseTurn=true){
   turn=randomiseTurn?(Math.random()<0.5?'white':'black'):'white';selected=null;validMoves=[];
-  captured={white:[],black:[]};gameOver=false;showOutcomes=false;outcomesEverOn=false;aiThinking=false;
+  captured={white:[],black:[]};gameOver=false;showOutcomes=true;outcomesEverOn=true;
+  outcomesHiddenClean=false;firstMoveMade=false;aiThinking=false;
   moveHistory=[];replayIndex=null;fullReplayMode=false;fullReplayPlaying=false;
   if(fullReplayTimer){clearTimeout(fullReplayTimer);fullReplayTimer=null;}
   document.body.classList.remove('replay-mode');
   document.getElementById('playback-bar').classList.remove('show');
   resetTimers();
   const btn=document.getElementById('btn-outcomes');
-  btn.textContent='⚄ Show Outcomes';btn.classList.remove('active-btn');
+  btn.textContent='⚄ Hide Outcomes';btn.classList.add('active-btn');
   document.getElementById('overlay').classList.remove('show');
   setStatus('');
   setStatus(`${turn.charAt(0).toUpperCase()+turn.slice(1)} goes first!`);initBoard();render();
@@ -3052,6 +3076,7 @@ async function autoSaveGame(winnerColor){
     whiteCap: captured.white.filter(p=>p.type!=='king').length,
     blackCap: captured.black.filter(p=>p.type!=='king').length,
     outcomesUsed: outcomesEverOn,
+    outcomesHiddenClean: outcomesHiddenClean,
     isOnline: gameMode==='online',
     myName: gameMode==='online'?onlineMyName:'',
     myColor: gameMode==='online'?onlineMyColor:'',
@@ -3104,9 +3129,9 @@ async function renderSavedGames(){
     const modeLabel=g.mode==='ai'?`vs AI (${g.difficulty})`
       :g.isOnline&&g.oppName?`vs ${g.oppName} (${g.myColor==='white'?'Black':'White'})`
       :'Human vs Human';
-    const outcomesIcon=g.outcomesUsed
-      ?''
-      :'<span title="Outcomes stayed hidden" style="color:var(--gold);font-size:1.1rem;">♔</span>';
+    const outcomesIcon=g.outcomesHiddenClean
+      ?'<span title="Outcomes stayed hidden all game" style="color:var(--gold);font-size:1.1rem;">♔</span>'
+      :'';
     const onlineIcon=g.isOnline
       ?'<span title="Online multiplayer game" style="font-size:1.1rem;">🌐</span>'
       :'';

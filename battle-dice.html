@@ -701,10 +701,6 @@ body.replay-mode #playback-bar{
           <span class="modal-btn-desc">Play vs a friend over the internet</span>
         </button>
       </div>
-      <div id="diff-select" style="display:none;margin-top:14px;">
-        <p class="modal-sub" style="margin-bottom:10px;">Select difficulty</p>
-        <div class="modal-btns" id="diff-buttons"></div>
-      </div>
       <div style="display:flex;gap:8px;margin-top:14px;">
         <button class="modal-btn" style="flex:1;" onclick="showModalView('saved')">
           <span class="modal-btn-label">📜 History</span>
@@ -715,6 +711,14 @@ body.replay-mode #playback-bar{
           <span class="modal-btn-desc">Win/loss records</span>
         </button>
       </div>
+    </div>
+
+    <!-- VIEW: HUMAN VS AI -->
+    <div id="modal-view-ai" style="display:none;">
+      <h2 class="modal-title" style="margin-bottom:4px;">♟ ⚙ Human vs AI</h2>
+      <p class="modal-sub" style="margin-bottom:14px;">Select a difficulty to begin</p>
+      <div class="modal-btns" id="diff-buttons"></div>
+      <button class="modal-btn" style="margin-top:14px;" onclick="showModalView('main')">← Back</button>
     </div>
 
     <!-- VIEW: ONLINE MULTIPLAYER -->
@@ -2067,8 +2071,7 @@ function showStartModal(){
 }
 
 function showDiffSelect(){
-  document.getElementById('diff-select').style.display='block';
-  renderDiffButtons();
+  showModalView('ai');
 }
 
 function startGame(mode, depth){
@@ -2842,7 +2845,7 @@ async function autoSaveGame(winnerColor){
 // MODAL VIEW SWITCHING
 // ============================================================
 function showModalView(view){
-  ['main','saved','stats','online','leaderboard'].forEach(v=>{
+  ['main','saved','stats','online','leaderboard','ai'].forEach(v=>{
     const el=document.getElementById(`modal-view-${v}`);
     if(el) el.style.display=(v===view)?'block':'none';
   });
@@ -2850,7 +2853,7 @@ function showModalView(view){
   if(view==='stats') renderStatsView();
   if(view==='online') resetOnlineLobbyUI();
   if(view==='leaderboard') renderLeaderboard('Easy');
-  document.getElementById('diff-select').style.display='none';
+  if(view==='ai') renderDiffButtons();
 }
 
 async function renderSavedGames(){
@@ -3319,6 +3322,8 @@ function updateLeaderboardNickname(name){
 }
 
 function updateOnlineButtons(){
+  const nicknameEl=document.getElementById('nickname-input');
+  const hasName=nicknameEl?nicknameEl.value.trim().length>0:false;
   const createBtn=document.getElementById('create-room-btn');
   const joinBtn=document.getElementById('join-room-btn');
   if(createBtn){

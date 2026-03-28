@@ -331,6 +331,8 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
 #timers{display:flex;flex-direction:column;gap:3px;margin-top:4px;border-top:1px solid rgba(200,160,60,.15);padding-top:5px;}
 .timer-row{display:flex;align-items:center;gap:5px;padding:2px 3px;border-radius:3px;transition:background .2s;}
 .timer-row.active-timer{background:rgba(200,160,60,.12);}
+.timer-row.timer-warning{background:rgba(220,60,60,.15);animation:timer-warn-pulse .7s ease-in-out infinite;}
+@keyframes timer-warn-pulse{0%,100%{background:rgba(220,60,60,.15);}50%{background:rgba(220,60,60,.3);}}
 .timer-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 .white-dot{background:#e8dfc8;border:1px solid rgba(0,0,0,.2);}
 .black-dot{background:#1a1410;border:1px solid rgba(255,255,255,.15);}
@@ -970,6 +972,26 @@ body.replay-mode #playback-bar{
             font-size:1rem;font-weight:700;color:var(--gold-light);flex:1;"></span>
         </div>
         <div class="modal-btns">
+          <!-- Time control toggle — only visible before room is created -->
+          <div id="time-control-selector" style="background:rgba(255,255,255,.04);
+            border:1px solid rgba(200,160,60,.2);border-radius:6px;padding:10px 12px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <span style="font-size:.8rem;color:rgba(245,230,200,.7);">⏱ Time Control</span>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" id="time-control-toggle" onchange="onTimeControlToggle()"
+                  style="width:16px;height:16px;cursor:pointer;accent-color:var(--gold);">
+                <span id="time-control-toggle-label" style="font-size:.78rem;
+                  color:rgba(245,230,200,.4);">Off</span>
+              </label>
+            </div>
+            <div id="time-control-presets" style="display:none;
+              display:none;gap:6px;flex-wrap:wrap;">
+              <button class="pb-speed-btn tc-preset active-speed" data-ms="180000" onclick="selectTimeControl(180000)">3 min</button>
+              <button class="pb-speed-btn tc-preset" data-ms="300000" onclick="selectTimeControl(300000)">5 min</button>
+              <button class="pb-speed-btn tc-preset" data-ms="600000" onclick="selectTimeControl(600000)">10 min</button>
+              <button class="pb-speed-btn tc-preset" data-ms="900000" onclick="selectTimeControl(900000)">15 min</button>
+            </div>
+          </div>
           <button class="modal-btn" id="create-room-btn" onclick="onlineCreateRoom()">
             <span class="modal-btn-label">🎲 Create Room</span>
             <span class="modal-btn-desc">Generate a code to share with your opponent</span>
@@ -1173,21 +1195,24 @@ function startTimer(){
   timerActivePlayer=turn;
 
   // In online mode when it's the opponent's turn:
-  // Show an approximated ticker starting from their last banked time
-  // Will be corrected to authoritative value when their move arrives
   if(gameMode==='online' && timerActivePlayer!==onlineMyColor){
     const approxStart=Date.now();
     const baseTime=playerTime[timerActivePlayer];
-    const approxPlayer=timerActivePlayer; // capture locally — timerActivePlayer will be nulled
+    const approxPlayer=timerActivePlayer;
     timerTick=setInterval(()=>{
       if(gameOver){clearInterval(timerTick);timerTick=null;return;}
-      const approxTotal=baseTime+(Date.now()-approxStart);
-      document.getElementById(`timer-${approxPlayer}`).textContent=formatTime(approxTotal);
+      if(timeControlActive){
+        // Countdown approximation for opponent
+        const remaining=Math.max(0, baseTime-(Date.now()-approxStart));
+        document.getElementById(`timer-${approxPlayer}`).textContent=formatTime(remaining);
+      } else {
+        const approxTotal=baseTime+(Date.now()-approxStart);
+        document.getElementById(`timer-${approxPlayer}`).textContent=formatTime(approxTotal);
+      }
     },100);
     document.getElementById(`timer-${approxPlayer}`).textContent=formatTime(baseTime);
     document.getElementById('timer-white-row').classList.toggle('active-timer',approxPlayer==='white');
     document.getElementById('timer-black-row').classList.toggle('active-timer',approxPlayer==='black');
-    // Don't set timerStart — stopTimer won't bank this approximate time
     timerActivePlayer=null;
     return;
   }
@@ -1196,9 +1221,27 @@ function startTimer(){
   timerTick=setInterval(()=>{
     if(gameOver){stopTimer();return;}
     const elapsed=Date.now()-timerStart;
-    const total=playerTime[timerActivePlayer]+elapsed;
-    document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(total);
+    if(timeControlActive){
+      // Countdown mode
+      const remaining=Math.max(0, playerTime[timerActivePlayer]-elapsed);
+      document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(remaining);
+      // Flash warning when under 30 seconds
+      const row=document.getElementById(`timer-${timerActivePlayer}-row`);
+      if(row) row.classList.toggle('timer-warning', remaining<30000&&remaining>0);
+      // Time's up!
+      if(remaining<=0){
+        stopTimer();
+        const opponent=timerActivePlayer==='white'?'black':'white';
+        const winnerName=opponent.charAt(0).toUpperCase()+opponent.slice(1);
+        endGame(`${winnerName} wins! ${timerActivePlayer.charAt(0).toUpperCase()+timerActivePlayer.slice(1)} ran out of time.`);
+      }
+    } else {
+      // Count-up mode
+      const total=playerTime[timerActivePlayer]+elapsed;
+      document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(total);
+    }
   },100);
+  // Show initial value
   document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(playerTime[timerActivePlayer]);
   document.getElementById('timer-white-row').classList.toggle('active-timer',timerActivePlayer==='white');
   document.getElementById('timer-black-row').classList.toggle('active-timer',timerActivePlayer==='black');
@@ -1207,26 +1250,35 @@ function startTimer(){
 function stopTimer(){
   if(timerTick){clearInterval(timerTick);timerTick=null;}
   if(timerStart!==null&&timerActivePlayer!==null){
-    // In online mode, only bank our own time — opponent's time comes from Firebase
-    const shouldBank = gameMode!=='online' || timerActivePlayer===onlineMyColor;
+    const shouldBank=gameMode!=='online'||timerActivePlayer===onlineMyColor;
     if(shouldBank){
       const elapsed=Date.now()-timerStart;
-      playerTime[timerActivePlayer]+=elapsed;
+      if(timeControlActive){
+        // Countdown: subtract elapsed from remaining time
+        playerTime[timerActivePlayer]=Math.max(0, playerTime[timerActivePlayer]-elapsed);
+      } else {
+        playerTime[timerActivePlayer]+=elapsed;
+      }
       document.getElementById(`timer-${timerActivePlayer}`).textContent=formatTime(playerTime[timerActivePlayer]);
     }
     timerStart=null;
   }
+  // Clear warning flash
+  document.getElementById('timer-white-row')?.classList.remove('timer-warning');
+  document.getElementById('timer-black-row')?.classList.remove('timer-warning');
 }
 
 function resetTimers(){
   stopTimer();
-  playerTime={white:0,black:0};
+  // In countdown mode start at the limit; in count-up mode start at 0
+  const startTime=timeControlActive?timeControlLimitMs:0;
+  playerTime={white:startTime,black:startTime};
   timerStart=null;
   timerActivePlayer=null;
-  document.getElementById('timer-white').textContent='0:00.0';
-  document.getElementById('timer-black').textContent='0:00.0';
-  document.getElementById('timer-white-row').classList.remove('active-timer');
-  document.getElementById('timer-black-row').classList.remove('active-timer');
+  document.getElementById('timer-white').textContent=formatTime(startTime||0);
+  document.getElementById('timer-black').textContent=formatTime(startTime||0);
+  document.getElementById('timer-white-row').classList.remove('active-timer','timer-warning');
+  document.getElementById('timer-black-row').classList.remove('active-timer','timer-warning');
 }
 
 function showScoreInfo(){
@@ -3825,6 +3877,8 @@ async function autoSaveGame(winnerColor){
     myName: gameMode==='online'?onlineMyName:'',
     myColor: gameMode==='online'?onlineMyColor:'',
     oppName: gameMode==='online'?onlineOppName:'',
+    timeControlUsed: timeControlActive,
+    timeControlLimitMs: timeControlActive?timeControlLimitMs:null,
     score: calculateScore(winnerColor, gameMode, aiDepth,
              Math.ceil(moveHistory.length/2),
              playerTime.white/1000, outcomesEverOn),
@@ -3901,13 +3955,16 @@ async function renderSavedGames(){
     const onlineIcon=g.isOnline
       ?'<span title="Online multiplayer game" style="font-size:1.1rem;">🌐</span>'
       :'';
+    const timeControlIcon=g.timeControlUsed&&g.timeControlLimitMs
+      ?`<span title="Time control: ${formatTime(g.timeControlLimitMs)} per player" style="font-size:1rem;cursor:default;">⏱</span>`
+      :'';
     const wTime=g.whiteTime!=null?formatTime(g.whiteTime):'—';
     const bTime=g.blackTime!=null?formatTime(g.blackTime):'—';
     const entry=document.createElement('div');
     entry.className='saved-game-entry';
     entry.innerHTML=`
       <div class="saved-game-info">
-        <div class="saved-game-title" style="display:flex;align-items:center;gap:6px;">${winnerLabel} ${outcomesIcon}${onlineIcon}</div>
+        <div class="saved-game-title" style="display:flex;align-items:center;gap:6px;">${winnerLabel} ${outcomesIcon}${onlineIcon}${timeControlIcon}</div>
         <div class="saved-game-meta" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${dateStr} · ${modeLabel}</div>
         <div class="saved-game-meta">${g.rounds}&nbsp;rounds · ${g.totalMoves}&nbsp;moves · <span title="White player timer" style="color:#e8dfc8;cursor:default;">⚀</span>&nbsp;${wTime} · <span title="Black player timer" style="color:#e05050;cursor:default;">⚅</span>&nbsp;${bTime}</div>
       </div>
@@ -4335,6 +4392,9 @@ let onlineMyColor=null;
 let onlineRoomRef=null;
 let onlineMyName='';
 let onlineOppName='';
+let timeControlEnabled=false;
+let timeControlLimitMs=180000; // default 3 min
+let timeControlActive=false; // true during a game with time control on
 
 // Module script injects these globals asynchronously
 function ensureFirebase(){
@@ -4384,6 +4444,23 @@ function onMainNicknameInput(val){
   updateMainMenuButtons();
 }
 
+function onTimeControlToggle(){
+  const cb=document.getElementById('time-control-toggle');
+  const presets=document.getElementById('time-control-presets');
+  const label=document.getElementById('time-control-toggle-label');
+  timeControlEnabled=cb.checked;
+  presets.style.display=timeControlEnabled?'flex':'none';
+  label.textContent=timeControlEnabled?'On':'Off';
+  label.style.color=timeControlEnabled?'var(--gold-light)':'rgba(245,230,200,.4)';
+}
+
+function selectTimeControl(ms){
+  timeControlLimitMs=ms;
+  document.querySelectorAll('.tc-preset').forEach(btn=>{
+    btn.classList.toggle('active-speed', parseInt(btn.dataset.ms)===ms);
+  });
+}
+
 function updateMainMenuButtons(){
   const name=loadNickname();
   const hasName=name.length>0;
@@ -4419,6 +4496,17 @@ function resetOnlineLobbyUI(){
   document.getElementById('room-code-display').style.display='none';
   const inp=document.getElementById('join-code-input');
   if(inp) inp.value='';
+  // Reset time control toggle
+  const cb=document.getElementById('time-control-toggle');
+  if(cb){ cb.checked=false; timeControlEnabled=false; }
+  const presets=document.getElementById('time-control-presets');
+  if(presets) presets.style.display='none';
+  const label=document.getElementById('time-control-toggle-label');
+  if(label){ label.textContent='Off'; label.style.color='rgba(245,230,200,.4)'; }
+  selectTimeControl(180000); // reset to 3 min default
+  // Show time control selector (only for creator, hides after room created)
+  const tcs=document.getElementById('time-control-selector');
+  if(tcs) tcs.style.display='block';
   // Show current nickname in the online lobby display
   const display=document.getElementById('online-nickname-display');
   if(display) display.textContent=loadNickname()||'—';
@@ -4443,7 +4531,11 @@ async function onlineCreateRoom(){
     const code=generateRoomCode();
     onlineRoom=code; onlineMyColor="white";
     onlineRoomRef=db.ref("rooms/"+code);
-    await onlineRoomRef.set({created:Date.now(),white:{connected:true,name:myName},black:{connected:false,name:""},state:"waiting",turn:"white"});
+    await onlineRoomRef.set({created:Date.now(),white:{connected:true,name:myName},black:{connected:false,name:""},state:"waiting",turn:"white",
+      timeControl:{enabled:timeControlEnabled,limitMs:timeControlEnabled?timeControlLimitMs:0}});
+    // Hide time control selector once room is created
+    const tcs=document.getElementById('time-control-selector');
+    if(tcs) tcs.style.display='none';
     document.getElementById("room-code-text").textContent=code;
     document.getElementById("room-code-display").style.display="block";
     setOnlineStatus("⏳ Waiting for opponent to join…");
@@ -4476,11 +4568,18 @@ async function onlineJoinRoom(){
     saveNickname(myName);
     onlineMyName=myName;
     onlineOppName=data.white&&data.white.name?data.white.name:"White";
-    onlineRoom=raw; onlineMyColor="black";
+    // Read time control settings from room
+    if(data.timeControl&&data.timeControl.enabled){
+      timeControlEnabled=true;
+      timeControlLimitMs=data.timeControl.limitMs||180000;
+      setOnlineStatus(`✓ Joined! Time control: ${formatTime(timeControlLimitMs)} per player. Starting…`,"rgba(80,220,120,.9)");
+    } else {
+      timeControlEnabled=false;
+      setOnlineStatus("✓ Joined! Starting game…","rgba(80,220,120,.9)");
+    }
     onlineRoomRef=db.ref("rooms/"+raw);
     await db.ref("rooms/"+raw+"/black").update({connected:true,name:myName});
     await db.ref("rooms/"+raw+"/state").set("playing");
-    setOnlineStatus("✓ Joined! Starting game…","rgba(80,220,120,.9)");
     setTimeout(()=>onlineStartGame(),800);
   }catch(e){
     console.error("joinRoom error:",e);
@@ -4491,9 +4590,11 @@ async function onlineJoinRoom(){
 function onlineStartGame(){
   const db=window._firebaseDB;
   gameMode="online"; gameStarted=true;
+  timeControlActive=timeControlEnabled;
   document.getElementById("start-modal").classList.add("hidden");
   const oppColor=onlineMyColor==="white"?"black":"white";
-  document.getElementById("mode-badge").textContent="🌐 vs "+onlineOppName+" ("+oppColor.charAt(0).toUpperCase()+oppColor.slice(1)+")";
+  const tcLabel=timeControlActive?` · ⏱${formatTime(timeControlLimitMs)}`:'';
+  document.getElementById("mode-badge").textContent="🌐 vs "+onlineOppName+" ("+oppColor.charAt(0).toUpperCase()+oppColor.slice(1)+")"+tcLabel;
   const ob=document.getElementById("online-badge");
   ob.textContent="🟢 "+onlineOppName+" connected"; ob.style.color="rgba(40,220,140,.9)"; ob.style.display="block";
   resetGame(false); turn="white";
@@ -4680,6 +4781,7 @@ function onlineLeaveGame(){
   }
   hideRematchBanner();
   hideDrawBanner();
+  timeControlActive=false;
   // Hide draw button
   const drawBtn=document.getElementById('btn-draw');
   if(drawBtn) drawBtn.style.display='none';

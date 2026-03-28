@@ -542,6 +542,65 @@ body[data-theme='white'] .saved-game-title{color:#555048;}
 body[data-theme='white'] .move-num{color:rgba(100,90,70,.6);}
 body[data-theme='white'] .mv-die,.mv-result{color:#303028;}
 body[data-theme='white'] #mode-badge,body[data-theme='white'] #status{color:rgba(48,48,40,.55);}
+/* ── TUTORIAL ── */
+.tut-board{display:grid;border:2px solid rgba(200,160,60,.4);border-radius:4px;
+  margin:0 auto 10px;background:#0f1f15;overflow:hidden;flex-shrink:0;}
+.tut-cell{display:flex;align-items:center;justify-content:center;position:relative;}
+.tut-cell.dark{background:var(--board-dark,#2d5a3d);}
+.tut-cell.light{background:var(--board-light,#e8c98e);}
+.tut-cell.highlight{box-shadow:inset 0 0 0 3px rgba(200,160,60,.9);background:rgba(200,160,60,.2);}
+.tut-cell.highlight-move{box-shadow:inset 0 0 0 2px rgba(100,200,255,.8);background:rgba(100,200,255,.12);}
+.tut-cell.highlight-capture{box-shadow:inset 0 0 0 2px rgba(220,80,80,.9);background:rgba(220,80,80,.15);}
+.tut-die{width:78%;height:78%;border-radius:18%;display:grid;
+  grid-template:repeat(3,1fr)/repeat(3,1fr);position:relative;transition:all .3s;}
+.tut-die.white{background:radial-gradient(circle at 35% 35%,#fff8e0,#d4aa50);
+  border:1.5px solid rgba(180,140,30,.8);}
+.tut-die.black{background:radial-gradient(circle at 35% 35%,#2a1a0a,#0a0804);
+  border:1.5px solid rgba(200,160,50,.5);}
+.tut-die.king-w{background:radial-gradient(circle at 35% 35%,#fff8e0,#d4aa50);
+  border:2px solid rgba(200,160,60,.9);display:flex;align-items:center;justify-content:center;
+  font-size:1.1em;border-radius:50%;}
+.tut-die.king-b{background:radial-gradient(circle at 35% 35%,#2a1a0a,#0a0804);
+  border:2px solid rgba(200,160,60,.6);display:flex;align-items:center;justify-content:center;
+  font-size:1.1em;border-radius:50%;color:#f0d070;}
+.tut-pip{border-radius:50%;}
+.tut-die.white .tut-pip{background:#1a1410;}
+.tut-die.black .tut-pip{background:#f0ead8;}
+.tut-pip.h{opacity:0;}
+.tut-label{font-family:'Crimson Text',serif;font-size:.88rem;
+  color:rgba(245,230,200,.8);line-height:1.5;text-align:left;margin-bottom:6px;}
+.tut-title{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;
+  color:var(--gold-light);margin-bottom:8px;text-align:center;}
+.tut-dot{width:8px;height:8px;border-radius:50%;background:rgba(200,160,60,.25);
+  cursor:pointer;transition:background .2s;}
+.tut-dot.active{background:var(--gold);}
+@keyframes tut-slide-in{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:none;}}
+@keyframes tut-slide-in-left{from{opacity:0;transform:translateX(-30px);}to{opacity:1;transform:none;}}
+.tut-animate-in{animation:tut-slide-in .25s ease both;}
+.tut-animate-in-left{animation:tut-slide-in-left .25s ease both;}
+.tut-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;
+  border-radius:4px;font-size:.78rem;background:rgba(200,160,60,.12);
+  border:1px solid rgba(200,160,60,.25);margin:1px 0;}
+.tut-arrow{position:absolute;pointer-events:none;z-index:5;}
+
+/* ── GAME START DICE DROP ANIMATION ── */
+@keyframes die-drop-in{
+  0%  {transform:translateY(-60px) scale(.4) rotate(-180deg);opacity:0;}
+  60% {transform:translateY(6px)   scale(1.08) rotate(8deg); opacity:1;}
+  80% {transform:translateY(-3px)  scale(.97) rotate(-3deg);}
+  100%{transform:translateY(0)     scale(1)   rotate(0deg); opacity:1;}
+}
+@keyframes die-drop-in-black{
+  0%  {transform:translateY(60px)  scale(.4) rotate(180deg); opacity:0;}
+  60% {transform:translateY(-6px)  scale(1.08) rotate(-8deg);opacity:1;}
+  80% {transform:translateY(3px)   scale(.97) rotate(3deg);}
+  100%{transform:translateY(0)     scale(1)   rotate(0deg); opacity:1;}
+}
+.die-animating{
+  animation-fill-mode:both;
+  animation-timing-function:cubic-bezier(.34,1.56,.64,1);
+}
+
 /* ── SEASONAL THEME OVERRIDES ── */
 
 /* Easter: pastel board squares */
@@ -999,6 +1058,26 @@ body.replay-mode #playback-bar{
           <span class="modal-btn-desc">Win/loss records</span>
         </button>
       </div>
+      <button class="modal-btn" style="margin-top:8px;width:100%;" onclick="showModalView('tutorial')">
+        <span class="modal-btn-label">📖 How to Play</span>
+        <span class="modal-btn-desc">Animated rules & scoring guide</span>
+      </button>
+    </div>
+
+    <!-- VIEW: TUTORIAL -->
+    <div id="modal-view-tutorial" style="display:none;">
+      <h2 class="modal-title" style="margin-bottom:4px;">📖 How to Play</h2>
+      <!-- Progress dots -->
+      <div id="tut-dots" style="display:flex;justify-content:center;gap:6px;margin-bottom:10px;"></div>
+      <!-- Slide container -->
+      <div id="tut-slide" style="min-height:320px;"></div>
+      <!-- Navigation -->
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center;justify-content:space-between;">
+        <button id="tut-prev" class="modal-btn" style="flex:0 0 80px;padding:8px 0;font-size:.85rem;" onclick="tutNav(-1)">← Prev</button>
+        <span id="tut-counter" style="font-size:.75rem;color:rgba(245,230,200,.4);"></span>
+        <button id="tut-next" class="modal-btn" style="flex:0 0 80px;padding:8px 0;font-size:.85rem;" onclick="tutNav(1)">Next →</button>
+      </div>
+      <button class="modal-btn" style="margin-top:8px;width:100%;" onclick="showModalView('main')">← Back to Menu</button>
     </div>
 
     <!-- VIEW: HUMAN VS AI -->
@@ -1596,11 +1675,18 @@ function executeMove(fr,fc,tr,tc,chosenPath){
   const piece=board[fr][fc];
   const target=board[tr][tc];
 
-  // First move milestone
-  if(!firstMoveMade) checkMilestoneMove();
+  // Determine if this move is being made by the human player
+  const isHumanMove = gameMode==='ai'
+    ? turn==='white'                         // human is always white vs AI
+    : gameMode==='online'
+      ? turn===onlineMyColor                 // human is their assigned colour online
+      : true;                                // local vs: both players are human
 
-  // First capture milestone
-  if(target) checkMilestoneCapture();
+  // First move milestone — human only
+  if(!firstMoveMade && isHumanMove) checkMilestoneMove();
+
+  // First capture milestone — human only
+  if(target && isHumanMove) checkMilestoneCapture();
 
   // First move of the game — lock in outcomes state
   if(!firstMoveMade){
@@ -2906,6 +2992,350 @@ function checkMilestoneCapture(){
 }
 
 // ============================================================
+// TUTORIAL SYSTEM
+// ============================================================
+const TPIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+
+function makeTutDie(val,color){
+  const d=document.createElement('div');
+  if(val==='K'||val==='k'){
+    d.className=`tut-die ${color==='white'?'king-w':'king-b'}`;
+    d.textContent='♚';
+    return d;
+  }
+  d.className=`tut-die ${color}`;
+  const pips=TPIPS[val]||[];
+  for(let i=0;i<9;i++){
+    const p=document.createElement('div');
+    p.className='tut-pip'+(pips.includes(i)?'':' h');
+    d.appendChild(p);
+  }
+  return d;
+}
+
+function makeTutBoard(size, cells){
+  // cells: array of {r,c,val,color,cls}
+  // size: number of rows/cols
+  const wrap=document.createElement('div');
+  const cellPx=Math.floor(240/size);
+  wrap.className='tut-board';
+  wrap.style.cssText=`grid-template-columns:repeat(${size},${cellPx}px);
+    grid-template-rows:repeat(${size},${cellPx}px);width:${cellPx*size}px;height:${cellPx*size}px;`;
+  const grid=[];
+  for(let r=0;r<size;r++){
+    grid[r]=[];
+    for(let c=0;c<size;c++){
+      const cell=document.createElement('div');
+      cell.className='tut-cell '+((r+c)%2===0?'dark':'light');
+      cell.style.cssText=`width:${cellPx}px;height:${cellPx}px;`;
+      wrap.appendChild(cell);
+      grid[r][c]=cell;
+    }
+  }
+  cells.forEach(({r,c,val,color,cls})=>{
+    if(cls) grid[r][c].className='tut-cell '+cls+' '+((r+c)%2===0?'dark':'light');
+    if(val!=null) grid[r][c].appendChild(makeTutDie(val,color));
+  });
+  return {wrap, grid, cellPx};
+}
+
+let _tutAnimTimer=null;
+let tutIndex=0;
+
+const TUT_SLIDES=[
+
+  // ── SLIDE 0: Welcome ──
+  {
+    title:'Welcome to Battle Dice!',
+    render(el){
+      el.innerHTML=`<div class="tut-title">Two armies. One board. Capture the King.</div>`;
+      const {wrap,grid,cellPx}=makeTutBoard(5,[
+        {r:0,c:1,val:3,color:'black'},{r:0,c:2,val:'K',color:'black'},{r:0,c:3,val:5,color:'black'},
+        {r:1,c:0,val:1,color:'black'},{r:1,c:2,val:2,color:'black'},{r:1,c:4,val:4,color:'black'},
+        {r:3,c:0,val:4,color:'white'},{r:3,c:2,val:2,color:'white'},{r:3,c:4,val:1,color:'white'},
+        {r:4,c:1,val:5,color:'white'},{r:4,c:2,val:'K',color:'white'},{r:4,c:3,val:3,color:'white'},
+      ]);
+      el.appendChild(wrap);
+      el.innerHTML+=`<div class="tut-label">Battle Dice is a strategic board game played on a 9×9 grid.
+        White and Black each start with <strong>17 dice</strong> and <strong>1 King</strong> arranged across two rows.
+        Your goal: <strong style="color:var(--gold-light);">capture the opponent's King</strong> to win.</div>`;
+    }
+  },
+
+  // ── SLIDE 1: The Board ──
+  {
+    title:'The Board',
+    render(el){
+      el.innerHTML=`<div class="tut-title">A 9×9 battlefield</div>`;
+      const {wrap,grid,cellPx}=makeTutBoard(5,[
+        {r:0,c:0,val:2,color:'black'},{r:0,c:2,val:'K',color:'black'},{r:0,c:4,val:3,color:'black'},
+        {r:1,c:1,val:1,color:'black'},{r:1,c:3,val:4,color:'black'},
+        {r:3,c:1,val:4,color:'white'},{r:3,c:3,val:1,color:'white'},
+        {r:4,c:0,val:3,color:'white'},{r:4,c:2,val:'K',color:'white'},{r:4,c:4,val:2,color:'white'},
+      ]);
+      el.appendChild(wrap);
+      el.innerHTML+=`<div class="tut-label">
+        <strong style="color:var(--gold-light);">Black</strong> starts at the top (rows 0–1).
+        <strong style="color:var(--gold-light);">White</strong> starts at the bottom (rows 7–8).
+        The back row dice are specially oriented along with the King. The front row dice are all standard 1's to begin.</div>`;
+    }
+  },
+
+  // ── SLIDE 2: How Dice Move ──
+  {
+    title:'How Dice Move',
+    render(el){
+      el.innerHTML=`<div class="tut-title">Top face = movement range</div>`;
+      const {wrap,grid,cellPx}=makeTutBoard(5,[{r:2,c:2,val:3,color:'white'}]);
+      // Highlight reachable cells for a die showing 3 (L-shape, 3 squares)
+      const moves=[[0,2],[1,1],[1,3],[3,1],[3,3],[4,2],[2,0],[2,4]];
+      moves.forEach(([r,c])=>{
+        if(r>=0&&r<5&&c>=0&&c<5)
+          grid[r][c].className='tut-cell highlight-move '+((r+c)%2===0?'dark':'light');
+      });
+      el.appendChild(wrap);
+      el.innerHTML+=`<div class="tut-label">
+        A die showing <strong style="color:var(--gold-light);">3</strong> on top moves exactly <strong>3 squares</strong>
+        in a straight line or an <strong style="color:rgba(100,200,255,.9);">L-shape</strong> — like a knight in chess,
+        but the leg lengths are determined by the face value.<br><br>
+        <span style="color:rgba(100,200,255,.8);">Blue squares</span> show all valid destinations.</div>`;
+
+      // Animate the die pulsing
+      const dieEl=grid[2][2].querySelector('.tut-die');
+      let on=true;
+      _tutAnimTimer=setInterval(()=>{
+        on=!on;
+        moves.forEach(([r,c])=>{
+          if(r>=0&&r<5&&c>=0&&c<5){
+            grid[r][c].style.opacity=on?'1':'0.3';
+          }
+        });
+      },700);
+    }
+  },
+
+  // ── SLIDE 3: Rolling Changes Values ──
+  {
+    title:'Rolling Changes Values',
+    render(el){
+      el.innerHTML=`<div class="tut-title">Moving rotates the die — face values change!</div>`;
+      const {wrap,grid,cellPx}=makeTutBoard(3,[
+        {r:1,c:0,val:3,color:'white'},
+      ]);
+      grid[1][2].className='tut-cell highlight-move '+((1+2)%2===0?'dark':'light');
+      el.appendChild(wrap);
+
+      const label=document.createElement('div');
+      label.className='tut-label';
+      label.innerHTML=`Moving the die rolls it along its path — the top face changes.
+        A die showing <strong style="color:var(--gold-light);">3</strong> might land showing <strong style="color:var(--gold-light);">5</strong>,
+        changing how far it can move <em>next turn</em>.<br><br>
+        This creates deep strategy: <strong>think ahead</strong> about what face your die will show
+        after it moves, not just where it's going right now.`;
+      el.appendChild(label);
+
+      // Animate: cycle the die between values 3 → 5 → 1 → 3
+      const vals=[3,5,1,4,2,6];
+      let vi=0;
+      _tutAnimTimer=setInterval(()=>{
+        vi=(vi+1)%vals.length;
+        const cell=grid[1][0];
+        cell.innerHTML='';
+        cell.appendChild(makeTutDie(vals[vi],'white'));
+      },800);
+    }
+  },
+
+  // ── SLIDE 4: The King ──
+  {
+    title:'The King',
+    render(el){
+      el.innerHTML=`<div class="tut-title">Protect your King — capture theirs!</div>`;
+      const {wrap,grid,cellPx}=makeTutBoard(5,[
+        {r:2,c:2,val:'K',color:'white'},
+      ]);
+      // King moves 1 square in any direction
+      for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+        if(!dr&&!dc) continue;
+        const r=2+dr, c=2+dc;
+        if(r>=0&&r<5&&c>=0&&c<5)
+          grid[r][c].className='tut-cell highlight-move '+((r+c)%2===0?'dark':'light');
+      }
+      el.appendChild(wrap);
+      el.innerHTML+=`<div class="tut-label">
+        The <strong style="color:var(--gold-light);">King ♚</strong> moves exactly <strong>1 square</strong>
+        in any direction — horizontal, vertical, or diagonal.<br><br>
+        <span style="color:rgba(100,200,255,.8);">Blue squares</span> show all 8 possible King moves.<br><br>
+        The King is your most important piece — if it's captured, you lose instantly. Keep it protected!</div>`;
+    }
+  },
+
+  // ── SLIDE 5: Capturing ──
+  {
+    title:'Capturing',
+    render(el){
+      el.innerHTML=`<div class="tut-title">Land on an enemy piece to capture it</div>`;
+      const {wrap,grid,cellPx}=makeTutBoard(5,[
+        {r:2,c:1,val:3,color:'white'},
+        {r:2,c:4,val:2,color:'black'},
+        {r:0,c:3,val:5,color:'black'},
+        {r:4,c:3,val:4,color:'black'},
+      ]);
+      // Only the value-2 die at (2,4) is capturable — highlight it red
+      grid[2][4].className='tut-cell highlight-capture '+((2+4)%2===0?'dark':'light');
+      grid[2][4].innerHTML='';
+      grid[2][4].appendChild(makeTutDie(2,'black'));
+      // Selected white die in gold
+      grid[2][1].className='tut-cell highlight '+((2+1)%2===0?'dark':'light');
+      grid[2][1].innerHTML='';
+      grid[2][1].appendChild(makeTutDie(3,'white'));
+      el.appendChild(wrap);
+      el.innerHTML+=`<div class="tut-label">
+        <strong style="color:var(--gold-light);">Selected piece</strong> shown in
+        <span class="tut-badge" style="border-color:rgba(200,160,60,.6);">gold</span>.
+        <strong style="color:rgba(220,100,100,.9);">Capturable enemy</strong> shown in
+        <span class="tut-badge" style="border-color:rgba(220,80,80,.6);">red</span>.<br><br>
+        Move your die to a square occupied by an enemy to remove it from the board.
+        Captured pieces are shown in the side panel. Capture the <strong>King</strong> to end the game!</div>`;
+
+      // Pulse only the capturable die
+      let on=true;
+      _tutAnimTimer=setInterval(()=>{
+        on=!on;
+        grid[2][4].style.opacity=on?'1':'0.4';
+      },600);
+    }
+  },
+
+  // ── SLIDE 6: Move History ──
+  {
+    title:'Reading Move History',
+    render(el){
+      el.innerHTML=`<div class="tut-title">The Move History panel</div>
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(200,160,60,.2);
+        border-radius:6px;padding:10px 12px;font-size:.8rem;font-family:'Crimson Text',serif;
+        color:rgba(245,230,200,.8);margin-bottom:8px;text-align:left;">
+        <div style="margin-bottom:6px;font-family:'Playfair Display',serif;font-size:.7rem;
+          text-transform:uppercase;letter-spacing:.08em;color:rgba(200,160,60,.6);">Example entry</div>
+        <div style="display:grid;grid-template-columns:22px 1fr;gap:0 6px;line-height:2;">
+          <span style="color:rgba(200,160,60,.5);font-size:.75rem;">3.</span>
+          <span>
+            <span style="color:rgba(245,230,200,.9);">●</span>
+            <span style="font-size:.85em;">⚄</span>
+            <span style="color:rgba(245,230,200,.6);">→</span>
+            <span style="font-size:.85em;">⚂</span>
+            <span style="color:rgba(220,80,80,.8);">✕</span>
+            <span style="color:rgba(40,180,160,.8);">L</span>
+            &nbsp;
+            <span style="color:rgba(200,160,60,.7);">♔</span>
+          </span>
+          <span></span>
+          <span>
+            <span style="color:rgba(200,200,200,.6);">○</span>
+            <span style="font-size:.85em;">⚁</span>
+            <span style="color:rgba(245,230,200,.6);">→</span>
+            <span style="font-size:.85em;">⚅</span>
+          </span>
+        </div>
+      </div>
+      <div class="tut-label" style="font-size:.78rem;text-align:left;">
+        <strong style="color:var(--gold-light);">Round number</strong> — each round is one move per player.<br>
+        <span class="tut-badge">●</span> Black's move &nbsp;
+        <span class="tut-badge">○</span> White's move<br>
+        <span class="tut-badge">⚄ → ⚂</span> Die face before → after rolling<br>
+        <span class="tut-badge" style="color:rgba(220,80,80,.8);">✕</span> A capture was made &nbsp;
+        <span class="tut-badge" style="color:rgba(40,180,160,.8);">L</span> Used an L-shape route<br>
+        <span class="tut-badge" style="color:rgba(200,160,60,.7);">♔</span> Outcomes were hidden (crown game) &nbsp;
+        <span class="tut-badge">🌐</span> Online game &nbsp;
+        <span class="tut-badge">⏱</span> Time control active
+      </div>`;
+    }
+  },
+
+  // ── SLIDE 7: Scoring ──
+  {
+    title:'Scoring (vs AI only)',
+    render(el){
+      el.innerHTML=`<div class="tut-title">How your score is calculated</div>
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(200,160,60,.2);
+        border-radius:6px;padding:10px 12px;margin-bottom:8px;text-align:center;">
+        <div style="font-size:.7rem;color:rgba(200,160,60,.5);text-transform:uppercase;
+          letter-spacing:.08em;margin-bottom:4px;">Formula</div>
+        <div style="font-family:'Playfair Display',serif;font-size:.88rem;color:var(--gold-light);">
+          Difficulty × (Efficiency + Speed) × Outcome
+        </div>
+      </div>
+      <div class="tut-label" style="font-size:.78rem;">
+        <strong style="color:var(--gold-light);">Difficulty multiplier</strong><br>
+        <span class="tut-badge">Easy ×1.0</span>
+        <span class="tut-badge">Medium ×1.5</span>
+        <span class="tut-badge">Hard ×2.5</span>
+        <span class="tut-badge">Expert ×4.0</span><br><br>
+        <strong style="color:var(--gold-light);">Efficiency</strong> — fewer rounds = higher score.
+        Winning in 5 rounds scores much more than winning in 30.<br><br>
+        <strong style="color:var(--gold-light);">Speed</strong> — your total thinking time (White's clock only).
+        Faster decisions score higher, with a guaranteed minimum of 50.<br><br>
+        <strong style="color:var(--gold-light);">Outcome Penalty</strong><br>
+        <span class="tut-badge">Outcomes hidden all game ×1.0</span>
+        <span class="tut-badge">Outcomes ever shown ×0.75</span><br><br>
+        Scores are saved per difficulty. Beat your personal best to climb the leaderboard!
+      </div>`;
+    }
+  },
+
+];
+
+let _tutDir=1;
+
+function showTutorial(){
+  showModalView('tutorial');
+  tutIndex=0;
+  renderTutSlide();
+}
+
+function tutNav(dir){
+  _tutDir=dir;
+  tutIndex=Math.max(0,Math.min(TUT_SLIDES.length-1,tutIndex+dir));
+  renderTutSlide();
+}
+
+function renderTutSlide(){
+  // Clear any running animation
+  if(_tutAnimTimer){ clearInterval(_tutAnimTimer); _tutAnimTimer=null; }
+
+  const slide=TUT_SLIDES[tutIndex];
+  const el=document.getElementById('tut-slide');
+  el.className=_tutDir>0?'tut-animate-in':'tut-animate-in-left';
+  el.innerHTML='';
+  slide.render(el);
+
+  // Dots
+  const dots=document.getElementById('tut-dots');
+  dots.innerHTML='';
+  TUT_SLIDES.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='tut-dot'+(i===tutIndex?' active':'');
+    d.onclick=()=>{ _tutDir=i>tutIndex?1:-1; tutIndex=i; renderTutSlide(); };
+    dots.appendChild(d);
+  });
+
+  // Counter
+  document.getElementById('tut-counter').textContent=`${tutIndex+1} / ${TUT_SLIDES.length}`;
+
+  // Prev/next buttons
+  document.getElementById('tut-prev').style.opacity=tutIndex===0?'0.3':'1';
+  document.getElementById('tut-prev').disabled=tutIndex===0;
+  document.getElementById('tut-next').textContent=tutIndex===TUT_SLIDES.length-1?'Done ✓':'Next →';
+  document.getElementById('tut-next').onclick=tutIndex===TUT_SLIDES.length-1
+    ?()=>showModalView('main')
+    :()=>tutNav(1);
+}
+
+// Stop animation when leaving tutorial view
+const _origShowModalView=showModalView;
+// (hook into showModalView to clear tutorial timer)
+
+// ============================================================
 // ONLINE DRAW OFFER SYSTEM
 // ============================================================
 function offerDraw(){
@@ -3120,6 +3550,71 @@ function listenForRematch(){
   });
 }
 
+function playStartAnimation(){
+  const boardEl=document.getElementById('board');
+  const overlay=document.getElementById('replay-overlay');
+  if(!boardEl||!overlay) return;
+
+  const cellW=boardEl.offsetWidth/9;
+  const cellH=boardEl.offsetHeight/9;
+  const boardOffX=boardEl.offsetLeft;
+  const boardOffY=boardEl.offsetTop;
+
+  // Rows to animate: black rows 0,1 drop from top; white rows 7,8 rise from bottom
+  const animRows=[
+    {row:0,color:'black',dir:'black',baseDelay:0},
+    {row:1,color:'black',dir:'black',baseDelay:60},
+    {row:7,color:'white',dir:'white',baseDelay:0},
+    {row:8,color:'white',dir:'white',baseDelay:60},
+  ];
+
+  // Briefly hide the real board cells so animation dice are visible on top
+  const cellEls=boardEl.querySelectorAll('.cell');
+  // We'll animate on the replay-overlay which sits above the board
+  const fragments=[];
+
+  animRows.forEach(({row,color,dir,baseDelay})=>{
+    for(let c=0;c<9;c++){
+      const piece=board[row][c];
+      if(!piece) continue;
+
+      const sz=cellW*0.72;
+      const pad=(cellW-sz)/2;
+      const x=boardOffX+c*cellW+pad;
+      const y=boardOffY+row*cellH+pad;
+
+      const dieEl=makeDieEl(piece.ori.top, false, piece.color);
+      dieEl.style.cssText=`
+        position:absolute;
+        left:${x}px;top:${y}px;
+        width:${sz}px;height:${sz}px;
+        padding:${sz*0.11}px;gap:${sz*0.05}px;
+        border-radius:14%;
+        z-index:20;
+        pointer-events:none;
+        opacity:0;
+      `;
+
+      // Stagger each column by 35ms
+      const delay=baseDelay + c*35;
+      const animName=dir==='black'?'die-drop-in-black':'die-drop-in';
+      dieEl.classList.add('die-animating');
+      dieEl.style.animationName=animName;
+      dieEl.style.animationDuration='520ms';
+      dieEl.style.animationDelay=`${delay}ms`;
+
+      overlay.appendChild(dieEl);
+      fragments.push({el:dieEl, delay});
+    }
+  });
+
+  // Clean up overlays after all animations complete (max delay + duration + buffer)
+  const maxDelay=60 + 8*35 + 520 + 100;
+  setTimeout(()=>{
+    fragments.forEach(({el})=>{ if(el.parentNode) el.parentNode.removeChild(el); });
+  }, maxDelay);
+}
+
 // ============================================================
 // RESET
 // ============================================================
@@ -3137,6 +3632,8 @@ function resetGame(randomiseTurn=true){
   document.getElementById('overlay').classList.remove('show');
   setStatus('');
   setStatus(`${turn.charAt(0).toUpperCase()+turn.slice(1)} goes first!`);initBoard();render();
+  // Play dice drop animation — brief RAF delay so DOM is painted first
+  requestAnimationFrame(()=>requestAnimationFrame(()=>playStartAnimation()));
   updateInspector({top:1,front:2,right:3});
   startTimer();
   // If AI goes first, trigger its move after a short delay so the board renders first
@@ -4462,12 +4959,15 @@ async function autoSaveGame(winnerColor){
 // MODAL VIEW SWITCHING
 // ============================================================
 function showModalView(view){
-  ['main','saved','stats','online','leaderboard','ai'].forEach(v=>{
+  // Stop any running tutorial animations when leaving
+  if(view!=='tutorial'&&_tutAnimTimer){ clearInterval(_tutAnimTimer); _tutAnimTimer=null; }
+  ['main','saved','stats','online','leaderboard','ai','tutorial'].forEach(v=>{
     const el=document.getElementById(`modal-view-${v}`);
     if(el) el.style.display=(v===view)?'block':'none';
   });
   if(view==='saved') renderSavedGames();
   if(view==='stats'){ switchStatsTab('stats'); renderStatsView(); }
+  if(view==='tutorial'){ tutIndex=0; _tutDir=1; renderTutSlide(); }
   if(view==='online') resetOnlineLobbyUI();
   if(view==='leaderboard') renderLeaderboard('Easy');
   if(view==='ai') renderDiffButtons();

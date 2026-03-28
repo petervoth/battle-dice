@@ -2832,7 +2832,7 @@ function decodeShareData(encoded){
   }catch(e){ return null; }
 }
 
-function shareGame(){
+async function shareGame(){
   if(!moveHistory.length) return;
   const winnerColor=gameOver?(document.getElementById('o-msg').textContent.startsWith('White')?'white':'black'):null;
   const meta={
@@ -2848,13 +2848,24 @@ function shareGame(){
   const encoded=encodeShareData(moveHistory,meta);
   if(!encoded){ alert('Could not generate share link.'); return; }
 
-  const url=getShareUrl(encoded);
+  // Show loading state on button
+  const btn=document.querySelector('#obox button[onclick="shareGame()"]');
+  if(btn){ btn.innerHTML='⏳ Creating link…'; btn.disabled=true; }
+
+  const key=await storeShareInFirebase(encoded);
+  if(!key){
+    if(btn){ btn.innerHTML='🔗 Share Replay'; btn.disabled=false; }
+    alert('Could not create share link. Check your connection.');
+    return;
+  }
+  const url=getShareUrl(key);
 
   // Copy to clipboard
   copyToClipboard(url,
     ()=>{ showShareConfirm(); },
     ()=>{ prompt('Copy this link to share the replay:', url); }
   );
+  if(btn){ btn.disabled=false; }
 }
 
 function showShareConfirm(){
@@ -2875,8 +2886,42 @@ function showShareConfirm(){
 
 const SHARE_BASE_URL='https://petervoth.github.io/battle-dice/battle-dice.html';
 
-function getShareUrl(encoded){
-  return `${SHARE_BASE_URL}#share=${encoded}`;
+function generateShortKey(){
+  const chars='abcdefghijklmnopqrstuvwxyz0123456789';
+  let key='';
+  for(let i=0;i<8;i++) key+=chars[Math.floor(Math.random()*chars.length)];
+  return key;
+}
+
+async function storeShareInFirebase(encoded){
+  if(!window._firebaseDB) return null;
+  const key=generateShortKey();
+  try{
+    await window._firebaseDB.ref('shares/'+key).set({
+      data: encoded,
+      created: Date.now()
+    });
+    return key;
+  }catch(e){
+    console.warn('Share store failed:',e);
+    return null;
+  }
+}
+
+async function fetchShareFromFirebase(key){
+  if(!window._firebaseDB) return null;
+  try{
+    const snap=await window._firebaseDB.ref('shares/'+key).once('value');
+    const val=snap.val();
+    return val?val.data:null;
+  }catch(e){
+    console.warn('Share fetch failed:',e);
+    return null;
+  }
+}
+
+function getShareUrl(key){
+  return `${SHARE_BASE_URL}#s=${key}`;
 }
 
 function copyToClipboard(text, onSuccess, onFail){
@@ -2908,17 +2953,48 @@ function execCommandCopy(text, onSuccess, onFail){
 // On page load — check for share hash and show landing screen
 let _sharedReplayData=null;
 
-function checkShareHash(){
+async function checkShareHash(){
   const hash=window.location.hash;
-  if(!hash.startsWith('#share=')) return false;
-  const encoded=hash.slice(7);
-  const data=decodeShareData(encoded);
-  if(!data) return false;
-  _sharedReplayData=data;
-  // Ensure start modal is hidden so share landing can show on top
-  document.getElementById('start-modal').classList.add('hidden');
-  showShareLanding(data);
-  return true;
+
+  // New short format: #s=abc12345
+  if(hash.startsWith('#s=')){
+    const key=hash.slice(3);
+    if(!key) return false;
+    document.getElementById('start-modal').classList.add('hidden');
+    // Show loading state while fetching
+    const landing=document.getElementById('share-landing');
+    document.getElementById('share-game-summary').innerHTML='<span style="color:rgba(245,230,200,.5);">Loading replay…</span>';
+    landing.classList.remove('hidden');
+    // Wait for Firebase to be ready
+    let attempts=0;
+    while(!window._firebaseDB && attempts<20){ await new Promise(r=>setTimeout(r,250)); attempts++; }
+    const encoded=await fetchShareFromFirebase(key);
+    if(!encoded){
+      document.getElementById('share-game-summary').innerHTML='<span style="color:rgba(220,80,80,.8);">Share link not found or expired.</span>';
+      return true;
+    }
+    const data=decodeShareData(encoded);
+    if(!data){
+      document.getElementById('share-game-summary').innerHTML='<span style="color:rgba(220,80,80,.8);">Could not load replay data.</span>';
+      return true;
+    }
+    _sharedReplayData=data;
+    showShareLanding(data);
+    return true;
+  }
+
+  // Legacy long format: #share=<base64> (still supported)
+  if(hash.startsWith('#share=')){
+    const encoded=hash.slice(7);
+    const data=decodeShareData(encoded);
+    if(!data) return false;
+    _sharedReplayData=data;
+    document.getElementById('start-modal').classList.add('hidden');
+    showShareLanding(data);
+    return true;
+  }
+
+  return false;
 }
 
 function showShareLanding(data){
@@ -3606,11 +3682,20 @@ async function shareFromSave(id){
   const encoded=encodeShareData(g.moveHistory, meta);
   if(!encoded){ alert('Could not generate share link.'); return; }
 
-  const url=getShareUrl(encoded);
-
   const btn=document.getElementById(`share-btn-${id}`);
+  if(btn){ btn.textContent='⏳'; btn.disabled=true; }
+
+  const key=await storeShareInFirebase(encoded);
+  if(!key){
+    if(btn){ btn.textContent='🔗'; btn.disabled=false; }
+    alert('Could not create share link. Check your connection.');
+    return;
+  }
+  const url=getShareUrl(key);
+
   const copyAndConfirm=(success)=>{
     if(btn){
+      btn.disabled=false;
       btn.classList.add('copied');
       btn.textContent=success?'✓':'📋';
       setTimeout(()=>{ btn.classList.remove('copied'); btn.textContent='🔗'; },2000);
@@ -4352,9 +4437,9 @@ function matchHistoryHeight(){
   }
 }
 // Check for shared replay link first — if found, show landing instead of main menu
-if(!checkShareHash()){
-  showStartModal();
-}
+checkShareHash().then(isShare=>{
+  if(!isShare) showStartModal();
+});
 matchHistoryHeight();
 updateSoundBtn();
 

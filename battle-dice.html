@@ -645,7 +645,16 @@ body.replay-mode #playback-bar{
     <div id="modal-view-main">
       <div class="modal-crown">⚄</div>
       <h2 class="modal-title" style="cursor:pointer;" onclick="cycleTheme()">Battle Dice</h2>
-      <p class="modal-sub">Choose your game mode</p>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:.72rem;color:rgba(245,230,200,.45);text-transform:uppercase;
+          letter-spacing:.08em;margin-bottom:5px;text-align:left;">Your Nickname</div>
+        <input id="main-nickname-input" type="text" placeholder="Enter a nickname…" maxlength="20"
+          style="width:100%;padding:8px 12px;border-radius:5px;border:1px solid rgba(200,160,60,.3);
+          background:rgba(255,255,255,.05);color:var(--cream);font-family:'Crimson Text',serif;
+          font-size:.95rem;outline:none;box-sizing:border-box;"
+          oninput="onMainNicknameInput(this.value)">
+      </div>
+      <p class="modal-sub" style="margin-top:0;">Choose your game mode</p>
       <div class="modal-btns">
         <button class="modal-btn" onclick="startGame('hvh')">
           <div class="modal-btn-top">
@@ -2022,6 +2031,9 @@ function showStartModal(){
     document.getElementById('modal-exit-btn').classList.add('show');
   }
   document.getElementById('overlay').classList.remove('show');
+  // Auto-populate nickname from localStorage
+  const mainInp=document.getElementById('main-nickname-input');
+  if(mainInp) mainInp.value=loadNickname();
 }
 
 function showDiffSelect(){
@@ -3265,8 +3277,15 @@ function loadNickname(){
   try{ return localStorage.getItem('battleDiceNickname')||''; }catch{ return ''; }
 }
 
+function onMainNicknameInput(val){
+  saveNickname(val.trim());
+  // Keep online lobby field in sync
+  const onlineInp=document.getElementById('nickname-input');
+  if(onlineInp) onlineInp.value=val;
+  updateOnlineButtons();
+}
+
 function updateOnlineButtons(){
-  const hasName=document.getElementById('nickname-input')?.value.trim().length>0;
   const createBtn=document.getElementById('create-room-btn');
   const joinBtn=document.getElementById('join-room-btn');
   if(createBtn){
@@ -3286,7 +3305,7 @@ function resetOnlineLobbyUI(){
   document.getElementById('room-code-display').style.display='none';
   const inp=document.getElementById('join-code-input');
   if(inp) inp.value='';
-  // Auto-populate nickname from localStorage
+  // Auto-populate nickname from localStorage (stays in sync with main menu field)
   const nicknameInp=document.getElementById('nickname-input');
   if(nicknameInp) nicknameInp.value=loadNickname();
   // Update button states based on whether a nickname is present

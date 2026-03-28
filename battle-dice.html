@@ -1232,7 +1232,6 @@ function executeMove(fr,fc,tr,tc,chosenPath){
   const target=board[tr][tc];
 
   // Play roll sound at start of move
-  playSoundRoll();
 
   // Pause timer during animation
   stopTimer();
@@ -2686,17 +2685,6 @@ function playNoise(duration,gainVal,startTime){
   }catch(e){}
 }
 
-function playSoundRoll(){
-  if(!soundEnabled) return;
-  try{
-    const ctx=getAudioCtx(); const t=ctx.currentTime;
-    for(let i=0;i<6;i++){
-      playNoise(0.04,0.06+Math.random()*0.04,t+i*0.016);
-      playTone(200+Math.random()*200,'square',0.03,0.04,t+i*0.016);
-    }
-  }catch(e){}
-}
-
 function playSoundLand(){
   if(!soundEnabled) return;
   try{
@@ -3698,7 +3686,6 @@ function applyOnlineMove(m){
   const rawPath=m.path;
   const path=(Array.isArray(rawPath)?rawPath:Object.values(rawPath)).map(p=>({r:p.r,c:p.c}));
   // Play roll sound when opponent's piece starts moving
-  playSoundRoll();
   animatePieceMove(piece,path,()=>{
     // Play landing sound
     if(m.capture) playSoundCapture(); else playSoundLand();

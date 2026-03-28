@@ -398,7 +398,122 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
 .lb-name{flex:1;color:var(--cream);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .lb-score{font-family:'Playfair Display',serif;font-weight:700;color:var(--gold-light);white-space:nowrap;}
 
-/* ========== WHITE THEME OVERRIDES ========== */
+/* ========== MOBILE OPTIMISATION ========== */
+@media (max-width: 768px) {
+
+  h1{font-size:1rem;padding:6px 0 4px;}
+
+  #game-container{
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap:6px;
+    padding:0 4px;
+  }
+
+  /* Board fills full width */
+  #board-outer{
+    grid-column:1;
+    grid-row:1;
+    justify-self:center;
+    width:calc(100vw - 16px);
+    padding:6px;
+    box-sizing:border-box;
+  }
+  #board{
+    height:calc(100vw - 28px);
+    width:calc(100vw - 28px);
+    max-height:calc(100vw - 28px);
+    max-width:calc(100vw - 28px);
+    min-height:unset;
+    min-width:unset;
+  }
+
+  /* History panel hidden on mobile — accessible via tab */
+  #history-panel{
+    display:none;
+  }
+
+  /* Side panel becomes a horizontal bottom drawer */
+  #side-panel{
+    grid-column:1;
+    grid-row:2;
+    width:100%;
+    display:none; /* hidden by default, shown via tab */
+    flex-direction:column;
+    gap:7px;
+    padding:8px;
+    background:var(--panel-bg);
+    border-radius:8px;
+    border:1px solid rgba(200,160,60,.2);
+    box-sizing:border-box;
+  }
+  #side-panel.mobile-open{display:flex;}
+
+  /* Mobile bottom tab bar */
+  #mobile-tab-bar{
+    display:flex;
+    grid-column:1;
+    grid-row:3;
+    gap:0;
+    background:rgba(0,0,0,.4);
+    border:1px solid rgba(200,160,60,.2);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .mobile-tab{
+    flex:1;
+    padding:10px 4px;
+    font-size:.7rem;
+    font-family:'Crimson Text',serif;
+    text-align:center;
+    color:rgba(245,230,200,.5);
+    cursor:pointer;
+    border:none;
+    background:transparent;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    transition:all .15s;
+    letter-spacing:.03em;
+  }
+  .mobile-tab .tab-icon{font-size:1.1rem;line-height:1;}
+  .mobile-tab.active{background:rgba(200,160,60,.12);color:var(--gold-light);}
+  .mobile-tab:active{background:rgba(200,160,60,.2);}
+
+  /* Mobile history panel */
+  #mobile-history-panel{
+    display:none;
+    grid-column:1;
+    grid-row:2;
+    background:var(--panel-bg);
+    border:1px solid rgba(200,160,60,.2);
+    border-radius:8px;
+    padding:8px;
+    box-sizing:border-box;
+    max-height:220px;
+    overflow-y:auto;
+  }
+  #mobile-history-panel.mobile-open{display:block;}
+  #mobile-history-panel h3{
+    font-family:'Playfair Display',serif;font-size:.75rem;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--gold);
+    border-bottom:1px solid rgba(200,160,60,.2);padding-bottom:4px;margin-bottom:6px;
+  }
+
+  /* Tighten up modal box on mobile */
+  .modal-box{max-width:calc(100vw - 24px);padding:16px 14px;max-height:90vh;overflow-y:auto;}
+  #obox{padding:18px 16px;max-width:calc(100vw - 32px);}
+
+  /* Playback bar on mobile */
+  #playback-bar{font-size:.78rem;}
+  #playback-controls button{padding:4px 8px;font-size:.85rem;}
+}
+
+/* Hide mobile tab bar on desktop */
+#mobile-tab-bar{display:none;}
+#mobile-history-panel{display:none;}
+ */
 body[data-theme='white']{color:#303028;}
 body[data-theme='white'] h1{color:#555048;text-shadow:0 0 20px rgba(100,90,70,.3),0 1px 3px rgba(0,0,0,.2);}
 body[data-theme='white'] .ibox{background:rgba(0,0,0,.05);border-color:rgba(100,90,70,.25);}
@@ -568,6 +683,28 @@ body.replay-mode #playback-bar{
     <button id="pb-exit" onclick="exitFullReplay()">✕ Exit Replay</button>
   </div>
 <div id="cinematic-vignette"></div>
+
+  <!-- MOBILE TAB BAR (hidden on desktop) -->
+  <div id="mobile-tab-bar">
+    <button class="mobile-tab active" id="tab-game" onclick="switchMobileTab('game')">
+      <span class="tab-icon">⚄</span>Game
+    </button>
+    <button class="mobile-tab" id="tab-info" onclick="switchMobileTab('info')">
+      <span class="tab-icon">⏱</span>Info
+    </button>
+    <button class="mobile-tab" id="tab-history" onclick="switchMobileTab('history')">
+      <span class="tab-icon">📜</span>History
+    </button>
+    <button class="mobile-tab" id="tab-menu" onclick="showStartModal()">
+      <span class="tab-icon">☰</span>Menu
+    </button>
+  </div>
+
+  <!-- MOBILE HISTORY PANEL (hidden on desktop) -->
+  <div id="mobile-history-panel">
+    <h3>Move History</h3>
+    <div id="mobile-move-history"></div>
+  </div>
 
   <!-- SIDE PANEL -->
   <div id="side-panel">
@@ -1047,6 +1184,34 @@ function showUnlockAnimation(diffLabel){
     burst.style.opacity='0';
     setTimeout(()=>{ overlay.style.display='none'; },400);
   },2800);
+}
+
+function isMobile(){ return window.innerWidth<=768; }
+
+function switchMobileTab(tab){
+  if(!isMobile()) return;
+  // Update tab highlights
+  ['game','info','history'].forEach(t=>{
+    const el=document.getElementById('tab-'+t);
+    if(el) el.classList.toggle('active', t===tab);
+  });
+  // Show/hide panels
+  const sidePanel=document.getElementById('side-panel');
+  const mobileHistory=document.getElementById('mobile-history-panel');
+  sidePanel.classList.remove('mobile-open');
+  mobileHistory.classList.remove('mobile-open');
+  if(tab==='info') sidePanel.classList.add('mobile-open');
+  if(tab==='history'){
+    mobileHistory.classList.add('mobile-open');
+    syncMobileHistory();
+  }
+}
+
+function syncMobileHistory(){
+  // Mirror the desktop move history into the mobile panel
+  const src=document.getElementById('move-history');
+  const dest=document.getElementById('mobile-move-history');
+  if(src&&dest) dest.innerHTML=src.innerHTML;
 }
 
 function showRules(){document.getElementById('rules-modal').classList.remove('hidden');}
@@ -1800,6 +1965,8 @@ function renderHistory(){
 
   // Auto-scroll to bottom
   el.scrollTop=el.scrollHeight;
+  // Keep mobile history panel in sync if it's open
+  if(isMobile()) syncMobileHistory();
 }
 
 // ============================================================

@@ -374,11 +374,14 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
 .saved-game-info{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;text-align:left;}
 .saved-game-title{font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--gold-light);text-align:left;}
 .saved-game-meta{font-size:.82rem;color:rgba(245,230,200,.5);line-height:1.4;text-align:left;}
-.saved-game-btns{display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-self:center;}
+.saved-game-btns{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;}
 .sg-btn{font-family:'Crimson Text',serif;font-size:.78rem;font-weight:600;
   padding:4px 6px;border-radius:3px;cursor:pointer;transition:all .15s;width:auto;white-space:nowrap;}
 .sg-btn.replay{border:1px solid rgba(200,160,60,.4);background:rgba(200,160,60,.1);color:var(--gold-light);}
 .sg-btn.replay:hover{background:rgba(200,160,60,.25);}
+.sg-btn.share{border:1px solid rgba(100,180,255,.3);background:rgba(100,180,255,.07);color:rgba(150,210,255,.8);}
+.sg-btn.share:hover{background:rgba(100,180,255,.2);}
+.sg-btn.share.copied{border-color:rgba(40,200,100,.4);background:rgba(40,200,100,.12);color:rgba(80,220,140,.9);}
 .saved-games-empty{font-size:.85rem;font-style:italic;color:rgba(245,230,200,.3);text-align:center;padding:20px 0;}
 
 #stats-content{display:flex;flex-direction:column;gap:8px;}
@@ -510,10 +513,12 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
   #playback-controls button{padding:4px 8px;font-size:.85rem;}
 }
 
-/* Hide mobile tab bar on desktop */
-#mobile-tab-bar{display:none;}
-#mobile-history-panel{display:none;}
- */
+/* Hide mobile elements on desktop */
+@media (min-width: 769px) {
+  #mobile-tab-bar{display:none;}
+  #mobile-history-panel{display:none;}
+}
+
 body[data-theme='white']{color:#303028;}
 body[data-theme='white'] h1{color:#555048;text-shadow:0 0 20px rgba(100,90,70,.3),0 1px 3px rgba(0,0,0,.2);}
 body[data-theme='white'] .ibox{background:rgba(0,0,0,.05);border-color:rgba(100,90,70,.25);}
@@ -757,6 +762,32 @@ body.replay-mode #playback-bar{
     </div>
 
     <button onclick="showRules()">📋 Rules</button>
+  </div>
+</div>
+
+<!-- SHARE LANDING SCREEN -->
+<div id="share-landing" class="modal-backdrop hidden" style="z-index:200;">
+  <div class="modal-box" style="max-width:360px;text-align:center;">
+    <div style="font-size:2rem;margin-bottom:8px;">🎬</div>
+    <h2 class="modal-title" style="margin-bottom:4px;">Shared Replay</h2>
+    <div id="share-game-summary" style="background:rgba(200,160,60,.07);border:1px solid rgba(200,160,60,.2);
+      border-radius:6px;padding:12px;margin:12px 0;font-size:.88rem;line-height:1.7;
+      color:rgba(245,230,200,.8);">
+    </div>
+    <button class="modal-btn" style="margin-bottom:8px;background:rgba(200,160,60,.15);
+      border-color:rgba(200,160,60,.5);" onclick="launchSharedReplay()">
+      <div class="modal-btn-top">
+        <span class="modal-btn-label">▶ Watch Replay</span>
+        <span class="modal-btn-icon">🎬</span>
+      </div>
+    </button>
+    <button class="modal-btn" onclick="dismissShareLanding()">
+      <div class="modal-btn-top">
+        <span class="modal-btn-label">⚄ Play Battle Dice</span>
+        <span class="modal-btn-icon">♟</span>
+      </div>
+      <span class="modal-btn-desc">Start your own game</span>
+    </button>
   </div>
 </div>
 
@@ -1017,6 +1048,7 @@ body.replay-mode #playback-bar{
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
       <button onclick="startFullReplay()">▶ Replay Game</button>
+      <button onclick="shareGame()" style="background:rgba(200,160,60,.12);border-color:rgba(200,160,60,.4);">🔗 Share Replay</button>
       <button onclick="showStartModal()">☰ Main Menu</button>
       <button onclick="rematch()">↺ Rematch</button>
     </div>
@@ -1877,13 +1909,16 @@ function renderHistory(){
     return;
   }
 
-  // Group into pairs (white move + black move per round)
+  // Group into pairs (white move + black move per round), newest first
+  const rounds=[];
   let i=0;
   while(i<moveHistory.length){
-    const wMove=moveHistory[i];
-    const bMove=moveHistory[i+1]||null;
-    const roundNum=Math.floor(i/2)+1;
+    rounds.push({wMove:moveHistory[i], bMove:moveHistory[i+1]||null, roundNum:Math.floor(i/2)+1, i});
+    i+=2;
+  }
+  rounds.reverse();
 
+  rounds.forEach(({wMove, bMove, roundNum, i})=>{
     const entry=document.createElement('div');
     entry.className='move-entry'+(i>=moveHistory.length-2?' latest':'');
 
@@ -1960,11 +1995,9 @@ function renderHistory(){
 
     entry.appendChild(pair);
     el.appendChild(entry);
-    i+=2;
-  }
-
-  // Auto-scroll to bottom
-  el.scrollTop=el.scrollHeight;
+  });
+  // Newest is at top — scroll to top so latest move is always visible
+  el.scrollTop=0;
   // Keep mobile history panel in sync if it's open
   if(isMobile()) syncMobileHistory();
 }
@@ -2739,7 +2772,197 @@ function runCinematicThenEndGame(m, isWinner=false){
 }
 
 // ============================================================
-// LEADERBOARD
+// GAME SHARING
+// ============================================================
+
+function encodeShareData(history, meta){
+  // Compact serialization: only store what's needed for replay
+  const compact={
+    v:1, // version
+    meta, // {winner, mode, difficulty, rounds, totalMoves, myName, oppName, myColor}
+    moves: history.map(m=>({
+      n:m.n, c:m.color==='white'?0:1,
+      t:m.type==='king'?0:1,
+      fr:m.fr, fc:m.fc, tr:m.tr, tc:m.tc,
+      vb:m.valBefore, va:m.valAfter,
+      p:m.path.map(s=>[s.r,s.c]),
+      cap:m.capture?1:0,
+      ct:m.capturedType==='king'?0:m.capturedType==='dice'?1:null,
+      ls:m.lShape?1:0
+    }))
+  };
+  try{
+    const json=JSON.stringify(compact);
+    return btoa(encodeURIComponent(json));
+  }catch(e){ return null; }
+}
+
+function decodeShareData(encoded){
+  try{
+    const json=decodeURIComponent(atob(encoded));
+    const data=JSON.parse(json);
+    if(!data||!data.moves) return null;
+    // Reconstruct full move history format
+    data.moves=data.moves.map(m=>({
+      n:m.n, color:m.c===0?'white':'black',
+      type:m.t===0?'king':'dice',
+      fr:m.fr, fc:m.fc, tr:m.tr, tc:m.tc,
+      from:'', to:'', // not needed for replay
+      valBefore:m.vb, valAfter:m.va,
+      path:m.p.map(s=>({r:s[0],c:s[1]})),
+      capture:!!m.cap,
+      capturedType:m.ct===0?'king':m.ct===1?'dice':null,
+      lShape:!!m.ls
+    }));
+    return data;
+  }catch(e){ return null; }
+}
+
+function shareGame(){
+  if(!moveHistory.length) return;
+  const winnerColor=gameOver?(document.getElementById('o-msg').textContent.startsWith('White')?'white':'black'):null;
+  const meta={
+    winner: winnerColor,
+    mode: gameMode,
+    difficulty: gameMode==='ai'?(DIFF_LEVELS.find(d=>d.depth===aiDepth)?.label||''):'',
+    rounds: Math.ceil(moveHistory.length/2),
+    totalMoves: moveHistory.length,
+    myName: onlineMyName||loadNickname()||'',
+    oppName: onlineOppName||'',
+    myColor: onlineMyColor||'white'
+  };
+  const encoded=encodeShareData(moveHistory,meta);
+  if(!encoded){ alert('Could not generate share link.'); return; }
+
+  const url=getShareUrl(encoded);
+
+  // Copy to clipboard
+  copyToClipboard(url,
+    ()=>{ showShareConfirm(); },
+    ()=>{ prompt('Copy this link to share the replay:', url); }
+  );
+}
+
+function showShareConfirm(){
+  // Briefly change button text to confirm copy
+  const btn=document.querySelector('#obox button[onclick="shareGame()"]');
+  if(btn){
+    const orig=btn.innerHTML;
+    btn.innerHTML='✓ Link Copied!';
+    btn.style.background='rgba(40,200,100,.2)';
+    btn.style.borderColor='rgba(40,200,100,.5)';
+    setTimeout(()=>{
+      btn.innerHTML=orig;
+      btn.style.background='';
+      btn.style.borderColor='';
+    },2000);
+  }
+}
+
+const SHARE_BASE_URL='https://petervoth.github.io/battle-dice/battle-dice.html';
+
+function getShareUrl(encoded){
+  return `${SHARE_BASE_URL}#share=${encoded}`;
+}
+
+function copyToClipboard(text, onSuccess, onFail){
+  // Try modern clipboard API first
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(onSuccess).catch(()=>{
+      // Fall back to execCommand
+      execCommandCopy(text, onSuccess, onFail);
+    });
+  } else {
+    execCommandCopy(text, onSuccess, onFail);
+  }
+}
+
+function execCommandCopy(text, onSuccess, onFail){
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text;
+    ta.style.cssText='position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+    if(ok) onSuccess(); else onFail();
+  }catch(e){ onFail(); }
+}
+
+// On page load — check for share hash and show landing screen
+let _sharedReplayData=null;
+
+function checkShareHash(){
+  const hash=window.location.hash;
+  if(!hash.startsWith('#share=')) return false;
+  const encoded=hash.slice(7);
+  const data=decodeShareData(encoded);
+  if(!data) return false;
+  _sharedReplayData=data;
+  showShareLanding(data);
+  return true;
+}
+
+function showShareLanding(data){
+  const meta=data.meta||{};
+  const winner=meta.winner==='white'?'White':'Black';
+  const winnerName=meta.myColor==='white'&&meta.winner==='white'?meta.myName
+    :meta.myColor==='black'&&meta.winner==='black'?meta.myName
+    :meta.oppName||winner;
+  const loserName=meta.myColor==='white'&&meta.winner==='black'?meta.myName
+    :meta.myColor==='black'&&meta.winner==='white'?meta.myName
+    :meta.oppName||'';
+
+  let summary='';
+  if(meta.mode==='ai'){
+    summary=`<strong style="color:var(--gold-light);">${winnerName||winner} won</strong> against the AI<br>`;
+    if(meta.difficulty) summary+=`Difficulty: ${meta.difficulty}<br>`;
+  } else if(meta.mode==='online'&&meta.myName&&meta.oppName){
+    const w=meta.winner===meta.myColor?meta.myName:meta.oppName;
+    const l=meta.winner===meta.myColor?meta.oppName:meta.myName;
+    summary=`<strong style="color:var(--gold-light);">${w}</strong> beat <strong style="color:var(--gold-light);">${l}</strong><br>`;
+  } else {
+    summary=`<strong style="color:var(--gold-light);">${winner} won</strong><br>`;
+  }
+  summary+=`${meta.rounds} round${meta.rounds!==1?'s':''} · ${meta.totalMoves} moves`;
+
+  document.getElementById('share-game-summary').innerHTML=summary;
+  document.getElementById('share-landing').classList.remove('hidden');
+}
+
+function launchSharedReplay(){
+  if(!_sharedReplayData) return;
+  document.getElementById('share-landing').classList.add('hidden');
+  // Load the shared move history and launch replay
+  moveHistory=_sharedReplayData.moves;
+  gameOver=true; gameStarted=true;
+  fullReplayBoards=buildReplayBoards();
+  fullReplayMode=true;
+  fullReplayStep=0;
+  fullReplayPlaying=false;
+  document.body.classList.add('replay-mode');
+  document.getElementById('playback-bar').classList.add('show');
+  const scrubber=document.getElementById('pb-scrubber');
+  scrubber.max=moveHistory.length;
+  scrubber.value=0;
+  dismissReplay();
+  renderHistory();
+  renderReplayStep(false);
+  updatePlaybackUI();
+  requestAnimationFrame(()=>requestAnimationFrame(matchHistoryHeight));
+}
+
+function dismissShareLanding(){
+  document.getElementById('share-landing').classList.add('hidden');
+  _sharedReplayData=null;
+  // Clear the hash so it doesn't interfere
+  history.replaceState(null,'',window.location.pathname);
+  showStartModal();
+}
+
+
 // ============================================================
 let currentLbDifficulty='Easy';
 
@@ -3338,12 +3561,50 @@ async function renderSavedGames(){
         <div class="saved-game-meta">${g.rounds}&nbsp;rounds · ${g.totalMoves}&nbsp;moves · <span title="White player timer" style="color:#e8dfc8;cursor:default;">⚀</span>&nbsp;${wTime} · <span title="Black player timer" style="color:#e05050;cursor:default;">⚅</span>&nbsp;${bTime}</div>
       </div>
       <div class="saved-game-btns">
-        <button class="sg-btn replay" onclick="replayFromSave(${g.id})">▶</button>
-        ${g.score?`<span style="font-family:'Playfair Display',serif;font-size:.82rem;font-weight:700;color:var(--gold-light);text-align:right;white-space:nowrap;">${g.score.toLocaleString()}<br><span style="font-size:.65rem;font-weight:400;color:rgba(200,160,60,.6);">pts</span></span>`:'<span></span>'}
+        <div style="display:flex;gap:4px;">
+          <button class="sg-btn replay" onclick="replayFromSave(${g.id})">▶</button>
+          <button class="sg-btn share" id="share-btn-${g.id}" onclick="shareFromSave(${g.id})">🔗</button>
+        </div>
+        ${g.score?`<span style="font-family:'Playfair Display',serif;font-size:.82rem;font-weight:700;color:var(--gold-light);white-space:nowrap;">${g.score.toLocaleString()}<span style="font-size:.65rem;font-weight:400;color:rgba(200,160,60,.6);"> pts</span></span>`:''}
       </div>
     `;
     list.appendChild(entry);
   });
+}
+
+async function shareFromSave(id){
+  const games=await getAllGames();
+  const g=games.find(x=>x.id===id);
+  if(!g||!g.moveHistory||!g.moveHistory.length){ alert('No move data to share.'); return; }
+
+  const meta={
+    winner: g.winner,
+    mode: g.mode,
+    difficulty: g.difficulty||'',
+    rounds: g.rounds||Math.ceil(g.moveHistory.length/2),
+    totalMoves: g.totalMoves||g.moveHistory.length,
+    myName: g.myName||'',
+    oppName: g.oppName||'',
+    myColor: g.myColor||'white'
+  };
+  const encoded=encodeShareData(g.moveHistory, meta);
+  if(!encoded){ alert('Could not generate share link.'); return; }
+
+  const url=getShareUrl(encoded);
+
+  const btn=document.getElementById(`share-btn-${id}`);
+  const copyAndConfirm=(success)=>{
+    if(btn){
+      btn.classList.add('copied');
+      btn.textContent=success?'✓':'📋';
+      setTimeout(()=>{ btn.classList.remove('copied'); btn.textContent='🔗'; },2000);
+    }
+  };
+
+  copyToClipboard(url,
+    ()=>copyAndConfirm(true),
+    ()=>{ prompt('Copy this link to share the replay:', url); copyAndConfirm(false); }
+  );
 }
 
 async function replayFromSave(id){
@@ -4062,7 +4323,10 @@ function matchHistoryHeight(){
     }
   }
 }
-showStartModal();
+// Check for shared replay link first — if found, show landing instead of main menu
+if(!checkShareHash()){
+  showStartModal();
+}
 matchHistoryHeight();
 updateSoundBtn();
 

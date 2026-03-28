@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f1f15">
+<meta name="description" content="Battle Dice — a strategic dice board game. Play vs AI, friends locally, or online multiplayer.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Battle Dice">
+<link rel="manifest" href="manifest.json">
 <title>Battle Dice</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
@@ -602,6 +608,7 @@ body.replay-mode #playback-bar{
     <button id="btn-outcomes" onclick="toggleOutcomes()">⚄ Show Outcomes</button>
     <button onclick="showStartModal()">☰ Main Menu</button>
     <button onclick="rematch()">↺ Rematch</button>
+    <button id="sound-toggle-btn" onclick="toggleSound()" style="font-size:1rem;">🔊</button>
 
     <div class="ibox">
       <h3>Captured by White</h3>
@@ -613,6 +620,24 @@ body.replay-mode #playback-bar{
     </div>
 
     <button onclick="showRules()">📋 Rules</button>
+  </div>
+</div>
+
+<!-- DIFFICULTY UNLOCK OVERLAY -->
+<div id="unlock-overlay" style="display:none;position:fixed;inset:0;z-index:500;
+  pointer-events:none;align-items:center;justify-content:center;flex-direction:column;">
+  <div id="unlock-burst" style="position:absolute;inset:0;background:radial-gradient(ellipse at center,
+    rgba(200,160,60,.25) 0%,transparent 70%);opacity:0;transition:opacity .4s;"></div>
+  <div id="unlock-card" style="background:linear-gradient(135deg,#1a3a1a,#0f2a0f);
+    border:2px solid var(--gold);border-radius:14px;padding:28px 36px;text-align:center;
+    box-shadow:0 0 60px rgba(200,160,60,.4),0 0 120px rgba(200,160,60,.15);
+    transform:scale(0.5);opacity:0;transition:transform .45s cubic-bezier(.17,.89,.32,1.49),opacity .3s;">
+    <div style="font-size:2.8rem;margin-bottom:8px;">🔓</div>
+    <div style="font-family:'Playfair Display',serif;font-size:.75rem;letter-spacing:.2em;
+      text-transform:uppercase;color:rgba(200,160,60,.6);margin-bottom:6px;">Difficulty Unlocked</div>
+    <div id="unlock-label" style="font-family:'Playfair Display',serif;font-size:1.9rem;
+      font-weight:900;color:var(--gold-light);letter-spacing:.05em;margin-bottom:4px;">—</div>
+    <div style="font-size:.82rem;color:rgba(245,230,200,.5);">Now available in Human vs AI</div>
   </div>
 </div>
 
@@ -999,6 +1024,28 @@ function hideScoreInfo(){
   document.getElementById('score-info-modal').classList.add('hidden');
 }
 
+function showUnlockAnimation(diffLabel){
+  const overlay=document.getElementById('unlock-overlay');
+  const card=document.getElementById('unlock-card');
+  const burst=document.getElementById('unlock-burst');
+  document.getElementById('unlock-label').textContent=diffLabel;
+  overlay.style.display='flex';
+  // Trigger animation on next frame
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    burst.style.opacity='1';
+    card.style.transform='scale(1)';
+    card.style.opacity='1';
+    playSoundUnlock();
+  }));
+  // Hold for 2.8s then fade out
+  setTimeout(()=>{
+    card.style.transform='scale(0.95)';
+    card.style.opacity='0';
+    burst.style.opacity='0';
+    setTimeout(()=>{ overlay.style.display='none'; },400);
+  },2800);
+}
+
 function showRules(){document.getElementById('rules-modal').classList.remove('hidden');}
 function hideRules(){document.getElementById('rules-modal').classList.add('hidden');}
 
@@ -1184,6 +1231,9 @@ function executeMove(fr,fc,tr,tc,chosenPath){
   const piece=board[fr][fc];
   const target=board[tr][tc];
 
+  // Play roll sound at start of move
+  playSoundRoll();
+
   // Pause timer during animation
   stopTimer();
 
@@ -1212,6 +1262,10 @@ function executeMove(fr,fc,tr,tc,chosenPath){
     });
 
     board[tr][tc]=piece; board[fr][fc]=null;
+
+    // Play landing sound
+    if(capturedPiece) playSoundCapture(); else playSoundLand();
+
     let wk=false,bk=false;
     for(let r=0;r<9;r++) for(let c=0;c<9;c++){
       const p=board[r][c];
@@ -1248,6 +1302,7 @@ function executeMove(fr,fc,tr,tc,chosenPath){
     stopTimer(); // ensure clean state before switching
     turn=turn==='white'?'black':'white';
     selected=null;validMoves=[];pendingMove=null;
+    playSoundTurnChange();
     startTimer();
     render();setStatus('');
     if(gameMode==='ai'&&turn===aiColor&&!gameOver) triggerAIMove();
@@ -1446,6 +1501,15 @@ function endGame(msg){
   }
 
   document.getElementById('overlay').classList.add('show');
+
+  // Play victory or defeat sound
+  if(gameMode==='ai'){
+    if(winnerColor==='white') playSoundVictory(); else playSoundDefeat();
+  } else if(gameMode==='online'){
+    // Handled by runCinematicThenEndGame — sound already played there
+  } else {
+    playSoundVictory(); // HvH — always celebratory
+  }
 
   // Auto-save the completed game
   autoSaveGame(winnerColor);
@@ -1918,6 +1982,7 @@ function onCell(r,c){
     if(selected&&selected.row===r&&selected.col===c){selected=null;validMoves=[];setStatus('');}
     else{
       selected={row:r,col:c};validMoves=getValidMoves(r,c);
+      playSoundSelect();
       const n=validMoves.length;
       if(p.type==='dice'){
         setStatus(n?`${n} move${n!==1?'s':''} available`:`No moves (value ${p.ori.top})`);
@@ -1929,6 +1994,7 @@ function onCell(r,c){
     render();return;
   }
   if(p&&p.type==='dice') updateInspector(p.ori);
+  if(p&&p.color!==turn) playSoundInvalid();
   selected=null;validMoves=[];setStatus('');render();
 }
 
@@ -2472,6 +2538,8 @@ function runCinematicThenEndGame(m, isWinner=false){
     label.classList.remove('show','green');
     vignette.classList.remove('show','green');
     boardEl.style.pointerEvents='';
+    // Play win or loss sound just before Game Over modal
+    if(isWinner) playSoundVictory(); else playSoundDefeat();
     endGame(m.color==='white'
       ? "White wins! The Black King has been captured."
       : "Black wins! The White King has been captured.");
@@ -2568,6 +2636,170 @@ function setLbTab(difficulty){
 
 
 // ============================================================
+// ============================================================
+// SOUND SYSTEM — Web Audio API (no external files)
+// ============================================================
+let _audioCtx=null;
+let soundEnabled=true;
+
+function getAudioCtx(){
+  if(!_audioCtx) _audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(_audioCtx.state==='suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+
+function playTone(frequency,type,duration,gainVal,startTime,endFreq){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type=type||'sine';
+    osc.frequency.setValueAtTime(frequency,startTime||ctx.currentTime);
+    if(endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq,(startTime||ctx.currentTime)+duration);
+    gain.gain.setValueAtTime(gainVal||0.15,startTime||ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001,(startTime||ctx.currentTime)+duration);
+    osc.start(startTime||ctx.currentTime);
+    osc.stop((startTime||ctx.currentTime)+duration);
+  }catch(e){}
+}
+
+function playNoise(duration,gainVal,startTime){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx();
+    const bufSize=ctx.sampleRate*duration;
+    const buf=ctx.createBuffer(1,bufSize,ctx.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<bufSize;i++) data[i]=(Math.random()*2-1);
+    const src=ctx.createBufferSource();
+    src.buffer=buf;
+    const filter=ctx.createBiquadFilter();
+    filter.type='bandpass'; filter.frequency.value=800; filter.Q.value=0.5;
+    const gain=ctx.createGain();
+    src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    const t=startTime||ctx.currentTime;
+    gain.gain.setValueAtTime(gainVal||0.08,t);
+    gain.gain.exponentialRampToValueAtTime(0.0001,t+duration);
+    src.start(t); src.stop(t+duration);
+  }catch(e){}
+}
+
+function playSoundRoll(){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx(); const t=ctx.currentTime;
+    for(let i=0;i<6;i++){
+      playNoise(0.04,0.06+Math.random()*0.04,t+i*0.016);
+      playTone(200+Math.random()*200,'square',0.03,0.04,t+i*0.016);
+    }
+  }catch(e){}
+}
+
+function playSoundLand(){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx(); const t=ctx.currentTime;
+    playTone(120,'sine',0.12,0.25,t,60);
+    playNoise(0.08,0.12,t);
+  }catch(e){}
+}
+
+function playSoundCapture(){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx(); const t=ctx.currentTime;
+    playTone(180,'sawtooth',0.18,0.3,t,60);
+    playNoise(0.15,0.2,t);
+    playTone(90,'sine',0.25,0.2,t+0.05,40);
+  }catch(e){}
+}
+
+function playSoundKingCapture(){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx(); const t=ctx.currentTime;
+    playTone(80,'sawtooth',0.6,0.4,t,30);
+    playTone(120,'sine',0.5,0.3,t+0.05,50);
+    playNoise(0.4,0.35,t);
+  }catch(e){}
+}
+
+function playSoundVictory(){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx(); const t=ctx.currentTime;
+    [523,659,784,1047].forEach((freq,i)=>{
+      playTone(freq,'sine',0.3,0.18,t+i*0.12);
+      playTone(freq*1.5,'sine',0.15,0.08,t+i*0.12);
+    });
+  }catch(e){}
+}
+
+function playSoundDefeat(){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx(); const t=ctx.currentTime;
+    [392,349,311,262].forEach((freq,i)=>{
+      playTone(freq,'sine',0.35,0.15,t+i*0.14);
+    });
+  }catch(e){}
+}
+
+function playSoundSelect(){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx();
+    playTone(880,'sine',0.06,0.08,ctx.currentTime);
+  }catch(e){}
+}
+
+function playSoundInvalid(){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx();
+    playTone(120,'square',0.1,0.1,ctx.currentTime);
+  }catch(e){}
+}
+
+function playSoundUnlock(){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx(); const t=ctx.currentTime;
+    [523,659,784,1047,1319].forEach((freq,i)=>{
+      playTone(freq,'sine',0.5,0.15,t+i*0.08);
+    });
+    playTone(523,'triangle',0.8,0.1,t);
+  }catch(e){}
+}
+
+function playSoundTurnChange(){
+  if(!soundEnabled) return;
+  try{
+    const ctx=getAudioCtx(); const t=ctx.currentTime;
+    playTone(660,'sine',0.15,0.07,t);
+    playTone(880,'sine',0.12,0.05,t+0.08);
+  }catch(e){}
+}
+
+function toggleSound(){
+  soundEnabled=!soundEnabled;
+  try{ localStorage.setItem('battleDiceSound',soundEnabled?'1':'0'); }catch{}
+  updateSoundBtn();
+  if(soundEnabled) playSoundSelect();
+}
+
+function updateSoundBtn(){
+  const btn=document.getElementById('sound-toggle-btn');
+  if(btn) btn.textContent=soundEnabled?'🔊':'🔇';
+}
+
+try{
+  const saved=localStorage.getItem('battleDiceSound');
+  if(saved==='0') soundEnabled=false;
+}catch{}
+
 const THEMES=[
   {
     name:'Green',
@@ -2713,9 +2945,14 @@ function setUnlockedDepth(depth){
 }
 
 function checkAndUnlock(winnerColor, mode, depth){
-  if(mode!=='ai'||winnerColor!=='white') return; // only human (white) wins unlock
+  if(mode!=='ai'||winnerColor!=='white') return;
   const current=getUnlockedDepth();
-  if(depth>current) setUnlockedDepth(depth);
+  if(depth>current){
+    setUnlockedDepth(depth);
+    // Find the next difficulty that just got unlocked
+    const next=DIFF_LEVELS.find(d=>d.depth===depth+1);
+    if(next) showUnlockAnimation(next.label);
+  }
 }
 
 function renderDiffButtons(){
@@ -3460,7 +3697,11 @@ function applyOnlineMove(m){
   }
   const rawPath=m.path;
   const path=(Array.isArray(rawPath)?rawPath:Object.values(rawPath)).map(p=>({r:p.r,c:p.c}));
+  // Play roll sound when opponent's piece starts moving
+  playSoundRoll();
   animatePieceMove(piece,path,()=>{
+    // Play landing sound
+    if(m.capture) playSoundCapture(); else playSoundLand();
 
     if(m.boardSnapshot){
       // Apply authoritative board state from attacker — eliminates all drift
@@ -3506,14 +3747,15 @@ function applyOnlineMove(m){
     if(kingCaptured){
       if(m.playerTimeWhite!=null) playerTime.white=m.playerTimeWhite;
       if(m.playerTimeBlack!=null) playerTime.black=m.playerTimeBlack;
+      playSoundKingCapture();
       render(); renderHistory();
-      // Show cinematic before Game Over modal, just like the AI kill
-      runCinematicThenEndGame(m);
+      runCinematicThenEndGame(m,false);
       return;
     }
 
     turn=turn==="white"?"black":"white";
     selected=null; validMoves=[];
+    playSoundTurnChange();
 
     // Stop timer first (banks our own elapsed time accurately)
     stopTimer();
@@ -3618,6 +3860,7 @@ function matchHistoryHeight(){
 }
 showStartModal();
 matchHistoryHeight();
+updateSoundBtn();
 
 // Backfill scores for legacy saved games that predate the scoring system
 async function migrateScores(){
@@ -3755,6 +3998,16 @@ if(typeof ResizeObserver !== 'undefined'){
     });
   });
 })();
+</script>
+<!-- PWA Service Worker Registration -->
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js')
+      .then(function(reg){ console.log('SW registered:', reg.scope); })
+      .catch(function(e){ console.warn('SW registration failed:', e); });
+  });
+}
 </script>
 </body>
 </html>

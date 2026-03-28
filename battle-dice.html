@@ -4977,8 +4977,11 @@ async function onlineJoinRoom(){
     const data=snap.val();
     if(data.state!=="waiting"){setOnlineStatus("This room is no longer available.","rgba(220,80,80,.9)");return;}
     if(data.black&&data.black.connected){setOnlineStatus("Room is full.","rgba(220,80,80,.9)");return;}
+    const myName=loadNickname()||"Player";
     saveNickname(myName);
     onlineMyName=myName;
+    onlineMyColor="black";
+    onlineRoom=raw;
     onlineOppName=data.white&&data.white.name?data.white.name:"White";
     // Read time control settings from room
     if(data.timeControl&&data.timeControl.enabled){

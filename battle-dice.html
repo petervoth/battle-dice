@@ -2802,7 +2802,7 @@ function applySpectatorMove(m){
       if(m.playerTimeBlack!=null) playerTime.black=m.playerTimeBlack;
       render(); renderHistory();
       const winner=m.color==='white'?'White':'Black';
-      endGame(`${winner} wins! The ${m.color==='white'?'Black':'White'} King has been captured.`);
+      endGame(kingCaptureMsg(m.color==='white'?'white':'black'));
       return;
     }
 
@@ -3334,6 +3334,23 @@ function renderTutSlide(){
 // Stop animation when leaving tutorial view
 const _origShowModalView=showModalView;
 // (hook into showModalView to clear tutorial timer)
+
+function kingCaptureMsg(winnerColor){
+  // Use player names for online games
+  if(gameMode==='online'&&(onlineMyName||onlineOppName)){
+    const winnerName = winnerColor===onlineMyColor
+      ? (onlineMyName||'You')
+      : (onlineOppName||(winnerColor==='white'?'White':'Black'));
+    const loserName = winnerColor===onlineMyColor
+      ? (onlineOppName||(winnerColor==='white'?'Black':'White'))
+      : (onlineMyName||(winnerColor==='white'?'Black':'White'));
+    return `${winnerName} wins! ${loserName}'s King has been captured.`;
+  }
+  // Default for AI / local games
+  return winnerColor==='white'
+    ? 'White wins! The Black King has been captured.'
+    : 'Black wins! The White King has been captured.';
+}
 
 // ============================================================
 // ONLINE DRAW OFFER SYSTEM
@@ -4055,9 +4072,7 @@ function runCinematicThenEndGame(m, isWinner=false){
     boardEl.style.pointerEvents='';
     // Play win or loss sound just before Game Over modal
     if(isWinner) playSoundVictory(); else playSoundDefeat();
-    endGame(m.color==='white'
-      ? "White wins! The Black King has been captured."
-      : "Black wins! The White King has been captured.");
+    endGame(kingCaptureMsg(m.color==='white'?'white':'black'));
   },4000);
 }
 

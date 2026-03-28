@@ -3571,8 +3571,14 @@ async function migrateScores(){
     const toUpdate=[];
 
     // Calculate scores for all eligible games
+    const bestPerDiff={};
     games.forEach(g=>{
-      if(g.score!=null) return; // already scored
+      // Track best score per difficulty across ALL scored wins (including already-scored ones)
+      if(g.mode==='ai'&&g.winner==='white'&&g.score){
+        const name=g.difficulty;
+        if(!bestPerDiff[name]||g.score>bestPerDiff[name]) bestPerDiff[name]=g.score;
+      }
+      if(g.score!=null) return; // already scored in IndexedDB — skip re-calculation
       if(g.mode!=='ai') return;
       if(g.winner!=='white') return;
       const depth=diffNameToDepth[g.difficulty];
@@ -3591,7 +3597,13 @@ async function migrateScores(){
       }catch{}
     });
 
-    if(!toUpdate.length) return;
+    if(!toUpdate.length){
+      // No new scores to write to IndexedDB, but still publish best scores to leaderboard
+      for(const [diff,score] of Object.entries(bestPerDiff)){
+        await publishScoreToLeaderboard(diff, score, loadNickname());
+      }
+      return;
+    }
 
     // Write all updates in a single transaction
     await new Promise((resolve, reject)=>{
@@ -3601,11 +3613,6 @@ async function migrateScores(){
       tx.oncomplete=async()=>{
         console.log(`Score migration: backfilled ${toUpdate.length} game(s).`);
         // Publish best score per difficulty to leaderboard
-        const bestPerDiff={};
-        toUpdate.forEach(g=>{
-          if(!bestPerDiff[g.difficulty]||g.score>bestPerDiff[g.difficulty])
-            bestPerDiff[g.difficulty]=g.score;
-        });
         for(const [diff,score] of Object.entries(bestPerDiff)){
           await publishScoreToLeaderboard(diff, score, loadNickname());
         }
@@ -3617,7 +3624,6 @@ async function migrateScores(){
     console.warn('Score migration failed:',e);
   }
 }
-migrateScores();
 window.addEventListener('resize', matchHistoryHeight);
 
 if(typeof ResizeObserver !== 'undefined'){
@@ -3667,13 +3673,18 @@ if(typeof ResizeObserver !== 'undefined'){
           window._firebaseAuth = firebase.auth();
           window._firebaseReady = true;
           // Sign in anonymously — gives each player a persistent uid
+          // Run migrateScores AFTER auth resolves so uid is ready for leaderboard publish
           firebase.auth().signInAnonymously()
             .then(function(result) {
               window._firebaseUID = result.user.uid;
               console.log('Firebase anonymous auth ready, uid:', window._firebaseUID);
+              // Now that we have a uid, run migration so legacy scores get published
+              migrateScores();
             })
             .catch(function(e) {
               console.warn('Anonymous auth failed:', e.message);
+              // Still run migration for local IndexedDB backfill even if auth fails
+              migrateScores();
             });
           console.log('Firebase compat ready');
         } catch(e) {

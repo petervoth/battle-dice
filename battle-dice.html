@@ -2031,8 +2031,11 @@ function replayMove(idx){
 
   // Highlight the history entry
   const entries=document.querySelectorAll('.move-entry');
-  // entries are grouped in pairs; idx maps to entry floor(idx/2)
-  const entryEl=entries[Math.floor(idx/2)];
+  // History is displayed newest-first, so reverse the index
+  const totalEntries=entries.length;
+  const forwardIdx=Math.floor(idx/2);
+  const reversedIdx=totalEntries-1-forwardIdx;
+  const entryEl=entries[reversedIdx];
   if(entryEl) entryEl.classList.add('replaying');
 
   // Get board dimensions to position overlays correctly
@@ -3884,7 +3887,10 @@ function renderReplayStep(animate){
 function highlightReplayHistoryEntry(moveIdx){
   document.querySelectorAll('.move-entry.replaying').forEach(e=>e.classList.remove('replaying'));
   const entries=document.querySelectorAll('.move-entry');
-  const entryEl=entries[Math.floor(moveIdx/2)];
+  const totalEntries=entries.length;
+  const forwardIdx=Math.floor(moveIdx/2);
+  const reversedIdx=totalEntries-1-forwardIdx;
+  const entryEl=entries[reversedIdx];
   if(entryEl){
     entryEl.classList.add('replaying');
     entryEl.scrollIntoView({block:'nearest',behavior:'smooth'});

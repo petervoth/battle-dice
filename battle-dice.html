@@ -749,6 +749,7 @@ body.replay-mode #playback-bar{
     </div>
 
     <button id="btn-outcomes" onclick="toggleOutcomes()">⚄ Show Outcomes</button>
+    <button id="btn-draw" onclick="offerDraw()" style="display:none;">🤝 Offer Draw</button>
     <button onclick="showStartModal()">☰ Main Menu</button>
     <button onclick="rematch()">↺ Rematch</button>
     <button id="sound-toggle-btn" onclick="toggleSound()" style="font-size:1rem;">🔊</button>
@@ -832,6 +833,25 @@ body.replay-mode #playback-bar{
       </div>
     </div>
     <button class="modal-btn" style="margin-top:16px;" onclick="hideScoreInfo()">✕ Close</button>
+  </div>
+</div>
+
+<!-- ONLINE DRAW OFFER BANNER -->
+<div id="draw-banner" style="display:none;position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%);z-index:150;background:var(--modal-bg1);
+  border:1px solid rgba(200,160,60,.4);border-radius:10px;padding:14px 20px;
+  text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.6);min-width:260px;">
+  <div id="draw-banner-msg" style="font-family:'Playfair Display',serif;
+    font-size:.95rem;color:var(--gold-light);margin-bottom:10px;">🤝 Draw Offered</div>
+  <div id="draw-banner-btns" style="display:flex;gap:8px;justify-content:center;">
+    <button onclick="acceptDraw()" style="background:rgba(40,200,100,.15);
+      border-color:rgba(40,200,100,.4);color:rgba(80,220,140,.9);padding:6px 16px;">
+      ✓ Accept
+    </button>
+    <button onclick="declineDraw()" style="background:rgba(220,60,60,.1);
+      border-color:rgba(220,60,60,.3);color:rgba(255,120,100,.8);padding:6px 16px;">
+      ✕ Decline
+    </button>
   </div>
 </div>
 
@@ -1669,8 +1689,14 @@ function endGame(msg){
   stopTimer();
 
   // Determine winner from message
-  const winnerColor=msg.startsWith('White')?'white':'black';
-  const loserColor=winnerColor==='white'?'black':'white';
+  const isDraw=msg.toLowerCase().startsWith('draw');
+  const winnerColor=isDraw?null:(msg.startsWith('White')?'white':'black');
+  const loserColor=winnerColor==='white'?'black':winnerColor==='black'?'white':null;
+
+  // Hide draw button when game ends
+  const drawBtn=document.getElementById('btn-draw');
+  if(drawBtn) drawBtn.style.display='none';
+  hideDrawBanner();
 
   // Check if a new difficulty should be unlocked
   checkAndUnlock(winnerColor, gameMode, aiDepth);
@@ -1706,11 +1732,12 @@ function endGame(msg){
     diffEl.style.color='rgba(245,230,200,.4)';
   }
 
-  // Highlight winner's stat block
-  document.getElementById('stat-white-row')||null;
+  // Highlight winner's stat block (not applicable for draws)
   document.querySelectorAll('.stat-player').forEach(el=>el.classList.remove('winner'));
-  const winnerSide=winnerColor==='white'?'.white-side':'.black-side';
-  document.querySelector(`#o-stats ${winnerSide}`)?.classList.add('winner');
+  if(winnerColor){
+    const winnerSide=winnerColor==='white'?'.white-side':'.black-side';
+    document.querySelector(`#o-stats ${winnerSide}`)?.classList.add('winner');
+  }
 
   // Calculate and display score (AI wins by human only)
   const humanTimeSec = wTime / 1000; // human always plays white
@@ -2425,6 +2452,98 @@ function startGame(mode, depth){
   }
   document.getElementById('online-badge').style.display='none';
   resetGame();
+}
+
+// ============================================================
+// ONLINE DRAW OFFER SYSTEM
+// ============================================================
+function offerDraw(){
+  if(!window._firebaseDB||!onlineRoom||gameOver) return;
+  const db=window._firebaseDB;
+  db.ref('rooms/'+onlineRoom+'/draw').set({
+    offeredBy: onlineMyColor,
+    status: 'pending'
+  });
+  const btn=document.getElementById('btn-draw');
+  if(btn){
+    btn.textContent='⏳ Offer Pending…';
+    btn.disabled=true;
+    btn.style.opacity='0.6';
+  }
+}
+
+function acceptDraw(){
+  if(!window._firebaseDB||!onlineRoom) return;
+  window._firebaseDB.ref('rooms/'+onlineRoom+'/draw').update({status:'accepted'});
+  hideDrawBanner();
+}
+
+function declineDraw(){
+  if(!window._firebaseDB||!onlineRoom) return;
+  window._firebaseDB.ref('rooms/'+onlineRoom+'/draw').update({status:'declined'});
+  hideDrawBanner();
+}
+
+function showDrawBanner(msg, showButtons){
+  const banner=document.getElementById('draw-banner');
+  document.getElementById('draw-banner-msg').textContent=msg;
+  document.getElementById('draw-banner-btns').style.display=showButtons?'flex':'none';
+  banner.style.display='block';
+}
+
+function hideDrawBanner(){
+  document.getElementById('draw-banner').style.display='none';
+}
+
+function resetDrawBtn(){
+  const btn=document.getElementById('btn-draw');
+  if(btn){
+    btn.textContent='🤝 Offer Draw';
+    btn.disabled=false;
+    btn.style.opacity='1';
+  }
+}
+
+function listenForDraw(){
+  if(!window._firebaseDB||!onlineRoom) return;
+  const db=window._firebaseDB;
+  db.ref('rooms/'+onlineRoom+'/draw').off();
+
+  db.ref('rooms/'+onlineRoom+'/draw').on('value', snap=>{
+    const data=snap.val();
+    if(!data) return;
+
+    if(data.status==='pending'){
+      if(data.offeredBy===onlineMyColor){
+        // I offered — already showing pending state on button
+      } else {
+        // Opponent offered — show accept/decline banner
+        showDrawBanner(`🤝 ${onlineOppName||'Opponent'} offers a draw`, true);
+      }
+    } else if(data.status==='accepted'){
+      hideDrawBanner();
+      resetDrawBtn();
+      // Clean up draw node then end game as draw
+      db.ref('rooms/'+onlineRoom+'/draw').remove();
+      endGame('Draw! The players have agreed to a draw.');
+    } else if(data.status==='declined'){
+      hideDrawBanner();
+      resetDrawBtn();
+      db.ref('rooms/'+onlineRoom+'/draw').remove();
+      if(data.offeredBy===onlineMyColor){
+        // My offer was declined — brief notification on button
+        const btn=document.getElementById('btn-draw');
+        if(btn){
+          btn.textContent='✕ Declined';
+          btn.style.color='rgba(220,80,80,.8)';
+          setTimeout(()=>{
+            btn.textContent='🤝 Offer Draw';
+            btn.style.color='';
+          },2500);
+        }
+      }
+    }
+  });
 }
 
 // ============================================================
@@ -4378,6 +4497,10 @@ function onlineStartGame(){
   const ob=document.getElementById("online-badge");
   ob.textContent="🟢 "+onlineOppName+" connected"; ob.style.color="rgba(40,220,140,.9)"; ob.style.display="block";
   resetGame(false); turn="white";
+  // Show draw offer button during online games
+  const drawBtn=document.getElementById('btn-draw');
+  if(drawBtn){ drawBtn.style.display=''; drawBtn.textContent='🤝 Offer Draw'; drawBtn.disabled=false; drawBtn.style.opacity='1'; }
+  listenForDraw();
   // Always start timer — both players see the active player's clock ticking from the start
   startTimer();
 
@@ -4553,8 +4676,13 @@ function onlineLeaveGame(){
     db.ref("rooms/"+onlineRoom+"/"+onlineMyColor+"/connected").set(false);
     db.ref("rooms/"+onlineRoom).off();
     db.ref("rooms/"+onlineRoom+"/rematch").off();
+    db.ref("rooms/"+onlineRoom+"/draw").off();
   }
   hideRematchBanner();
+  hideDrawBanner();
+  // Hide draw button
+  const drawBtn=document.getElementById('btn-draw');
+  if(drawBtn) drawBtn.style.display='none';
   onlineRoom=null;onlineMyColor=null;onlineRoomRef=null;
   const ob=document.getElementById("online-badge");
   if(ob) ob.style.display="none";

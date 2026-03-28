@@ -835,6 +835,25 @@ body.replay-mode #playback-bar{
   </div>
 </div>
 
+<!-- ONLINE REMATCH BANNER -->
+<div id="rematch-banner" style="display:none;position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%);z-index:150;background:var(--modal-bg1);
+  border:1px solid rgba(200,160,60,.4);border-radius:10px;padding:14px 20px;
+  text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.6);min-width:260px;">
+  <div id="rematch-banner-msg" style="font-family:'Playfair Display',serif;
+    font-size:.95rem;color:var(--gold-light);margin-bottom:10px;">↺ Rematch Requested!</div>
+  <div id="rematch-banner-btns" style="display:flex;gap:8px;justify-content:center;">
+    <button onclick="acceptRematch()" style="background:rgba(40,200,100,.15);
+      border-color:rgba(40,200,100,.4);color:rgba(80,220,140,.9);padding:6px 16px;">
+      ✓ Accept
+    </button>
+    <button onclick="declineRematch()" style="background:rgba(220,60,60,.1);
+      border-color:rgba(220,60,60,.3);color:rgba(255,120,100,.8);padding:6px 16px;">
+      ✕ Decline
+    </button>
+  </div>
+</div>
+
 <!-- RULES MODAL -->
 <div id="rules-modal" class="modal-backdrop hidden">
   <div class="modal-box" style="max-width:460px;text-align:left;">
@@ -1051,7 +1070,7 @@ body.replay-mode #playback-bar{
       <button onclick="startFullReplay()">▶ Replay Game</button>
       <button onclick="shareGame()" style="background:rgba(200,160,60,.12);border-color:rgba(200,160,60,.4);">🔗 Share Replay</button>
       <button onclick="showStartModal()">☰ Main Menu</button>
-      <button onclick="rematch()">↺ Rematch</button>
+      <button id="rematch-btn" onclick="rematch()">↺ Rematch</button>
     </div>
   </div>
 </div>
@@ -1722,6 +1741,18 @@ function endGame(msg){
   }
 
   document.getElementById('overlay').classList.add('show');
+
+  // Online: set up rematch listener and update button
+  if(gameMode==='online'){
+    const btn=document.getElementById('rematch-btn');
+    if(btn){
+      btn.textContent='↺ Rematch';
+      btn.disabled=false;
+      btn.style.opacity='1';
+      btn.style.color='';
+    }
+    listenForRematch();
+  }
 
   // Play victory or defeat sound
   if(gameMode==='ai'){
@@ -2396,16 +2427,125 @@ function startGame(mode, depth){
   resetGame();
 }
 
+// ============================================================
+// ONLINE REMATCH SYSTEM
+// ============================================================
+let _rematchListener=null;
+
 function rematch(){
-  // Online rematch not supported — send back to menu
   if(gameMode==='online'){
-    onlineLeaveGame();
-    document.getElementById('overlay').classList.remove('show');
-    showStartModal();
+    requestOnlineRematch();
     return;
   }
   document.getElementById('overlay').classList.remove('show');
   resetGame();
+}
+
+function requestOnlineRematch(){
+  if(!window._firebaseDB||!onlineRoom) return;
+  const db=window._firebaseDB;
+  // Write rematch request to Firebase
+  db.ref('rooms/'+onlineRoom+'/rematch').set({
+    requestedBy: onlineMyColor,
+    status: 'pending'
+  });
+  // Update button to show waiting state
+  const btn=document.getElementById('rematch-btn');
+  if(btn){
+    btn.textContent='⏳ Waiting…';
+    btn.disabled=true;
+    btn.style.opacity='0.6';
+  }
+  setStatus('Rematch requested — waiting for opponent…');
+}
+
+function acceptRematch(){
+  if(!window._firebaseDB||!onlineRoom) return;
+  window._firebaseDB.ref('rooms/'+onlineRoom+'/rematch').update({status:'accepted'});
+  hideRematchBanner();
+}
+
+function declineRematch(){
+  if(!window._firebaseDB||!onlineRoom) return;
+  window._firebaseDB.ref('rooms/'+onlineRoom+'/rematch').update({status:'declined'});
+  hideRematchBanner();
+}
+
+function showRematchBanner(msg, showButtons){
+  const banner=document.getElementById('rematch-banner');
+  document.getElementById('rematch-banner-msg').textContent=msg;
+  document.getElementById('rematch-banner-btns').style.display=showButtons?'flex':'none';
+  banner.style.display='block';
+}
+
+function hideRematchBanner(){
+  document.getElementById('rematch-banner').style.display='none';
+}
+
+function startOnlineRematch(newMyColor){
+  // Clean up old listeners before resetting
+  if(window._firebaseDB&&onlineRoom){
+    window._firebaseDB.ref('rooms/'+onlineRoom+'/rematch').off();
+    window._firebaseDB.ref('rooms/'+onlineRoom+'/moves').off();
+  }
+  hideRematchBanner();
+  document.getElementById('overlay').classList.remove('show');
+
+  // Swap colours
+  onlineMyColor=newMyColor;
+  onlineOppName=onlineOppName; // stays the same
+
+  // Reset the moves node for the new game
+  if(window._firebaseDB&&onlineRoom){
+    window._firebaseDB.ref('rooms/'+onlineRoom+'/moves').remove();
+    window._firebaseDB.ref('rooms/'+onlineRoom+'/rematch').remove();
+  }
+
+  // Start fresh game in same room
+  onlineStartGame();
+}
+
+function listenForRematch(){
+  if(!window._firebaseDB||!onlineRoom) return;
+  const db=window._firebaseDB;
+  // Remove any existing listener
+  db.ref('rooms/'+onlineRoom+'/rematch').off();
+
+  db.ref('rooms/'+onlineRoom+'/rematch').on('value', snap=>{
+    const data=snap.val();
+    if(!data) return;
+
+    if(data.status==='pending'){
+      if(data.requestedBy===onlineMyColor){
+        // I requested — show waiting state (already set in requestOnlineRematch)
+      } else {
+        // Opponent requested — show accept/decline banner
+        showRematchBanner(`↺ ${onlineOppName||'Opponent'} wants a rematch!`, true);
+      }
+    } else if(data.status==='accepted'){
+      hideRematchBanner();
+      // Both players start new game — colours swap
+      const newMyColor=onlineMyColor==='white'?'black':'white';
+      startOnlineRematch(newMyColor);
+    } else if(data.status==='declined'){
+      hideRematchBanner();
+      if(data.requestedBy===onlineMyColor){
+        // My request was declined
+        const btn=document.getElementById('rematch-btn');
+        if(btn){
+          btn.textContent='✕ Declined';
+          btn.style.color='rgba(220,80,80,.8)';
+          setTimeout(()=>{
+            btn.textContent='↺ Rematch';
+            btn.disabled=false;
+            btn.style.opacity='1';
+            btn.style.color='';
+          },2500);
+        }
+        setStatus('Rematch declined.');
+      }
+    }
+  });
 }
 
 // ============================================================
@@ -4412,7 +4552,9 @@ function onlineLeaveGame(){
     const db=window._firebaseDB;
     db.ref("rooms/"+onlineRoom+"/"+onlineMyColor+"/connected").set(false);
     db.ref("rooms/"+onlineRoom).off();
+    db.ref("rooms/"+onlineRoom+"/rematch").off();
   }
+  hideRematchBanner();
   onlineRoom=null;onlineMyColor=null;onlineRoomRef=null;
   const ob=document.getElementById("online-badge");
   if(ob) ob.style.display="none";

@@ -766,7 +766,7 @@ body.replay-mode #playback-bar{
 </div>
 
 <!-- SHARE LANDING SCREEN -->
-<div id="share-landing" class="modal-backdrop hidden" style="z-index:200;">
+<div id="share-landing" class="modal-backdrop hidden" style="z-index:250;">
   <div class="modal-box" style="max-width:360px;text-align:center;">
     <div style="font-size:2rem;margin-bottom:8px;">🎬</div>
     <h2 class="modal-title" style="margin-bottom:4px;">Shared Replay</h2>
@@ -2901,6 +2901,8 @@ function checkShareHash(){
   const data=decodeShareData(encoded);
   if(!data) return false;
   _sharedReplayData=data;
+  // Ensure start modal is hidden so share landing can show on top
+  document.getElementById('start-modal').classList.add('hidden');
   showShareLanding(data);
   return true;
 }

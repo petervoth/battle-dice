@@ -938,6 +938,7 @@ let board=[],turn='white',selected=null,validMoves=[],captured={white:[],black:[
 let showOutcomes=true;
 let outcomesEverOn=true;      // tracks if outcomes were on at any point after first move
 let outcomesHiddenClean=false; // true if player hid outcomes before first move and kept them hidden
+let oppOutcomesHiddenClean=false; // opponent's equivalent, received via Firebase
 let firstMoveMade=false;       // flips true on first move of the game
 let moveHistory=[];
 
@@ -2199,7 +2200,7 @@ function rematch(){
 function resetGame(randomiseTurn=true){
   turn=randomiseTurn?(Math.random()<0.5?'white':'black'):'white';selected=null;validMoves=[];
   captured={white:[],black:[]};gameOver=false;showOutcomes=true;outcomesEverOn=true;
-  outcomesHiddenClean=false;firstMoveMade=false;aiThinking=false;
+  outcomesHiddenClean=false;oppOutcomesHiddenClean=false;firstMoveMade=false;aiThinking=false;
   moveHistory=[];replayIndex=null;fullReplayMode=false;fullReplayPlaying=false;
   if(fullReplayTimer){clearTimeout(fullReplayTimer);fullReplayTimer=null;}
   document.body.classList.remove('replay-mode');
@@ -3078,6 +3079,7 @@ async function autoSaveGame(winnerColor){
     blackCap: captured.black.filter(p=>p.type!=='king').length,
     outcomesUsed: outcomesEverOn,
     outcomesHiddenClean: outcomesHiddenClean,
+    oppOutcomesHiddenClean: gameMode==='online'?oppOutcomesHiddenClean:null,
     isOnline: gameMode==='online',
     myName: gameMode==='online'?onlineMyName:'',
     myColor: gameMode==='online'?onlineMyColor:'',
@@ -3120,6 +3122,28 @@ async function renderSavedGames(){
   games.forEach(g=>{
     const d=new Date(g.date);
     const dateStr=d.toLocaleDateString()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    const iWon = g.isOnline
+      ? (g.winner===g.myColor)
+      : null;
+    const oppColor = g.isOnline ? (g.myColor==='white'?'Black':'White') : '';
+
+    // Crown icon for my own clean game (non-online, or online when relevant)
+    const myCrownIcon = g.outcomesHiddenClean
+      ? '<span title="Outcomes stayed hidden all game" style="color:var(--gold);font-size:1.1rem;">♔</span>'
+      : '';
+
+    // Online: winner's crown goes left of 🌐, loser's crown goes right of opponent name on row 2
+    const winnerCrownOnline = g.isOnline && iWon && g.outcomesHiddenClean
+      ? '<span title="You hid Outcomes all game" style="color:var(--gold);font-size:1.1rem;">♔</span>'
+      : g.isOnline && !iWon && g.oppOutcomesHiddenClean
+      ? '<span title="Opponent hid Outcomes all game" style="color:var(--gold);font-size:1.1rem;">♔</span>'
+      : '';
+    const loserCrownOnline = g.isOnline && !iWon && g.outcomesHiddenClean
+      ? ' <span title="You hid Outcomes all game" style="color:var(--gold);font-size:1rem;">♔</span>'
+      : g.isOnline && iWon && g.oppOutcomesHiddenClean
+      ? ' <span title="Opponent hid Outcomes all game" style="color:var(--gold);font-size:1rem;">♔</span>'
+      : '';
+
     const winnerLabel=g.winner==='white'
       ?(g.isOnline&&g.myColor==='white'?`⚀ You won`
         :g.isOnline&&g.oppName&&g.myColor==='black'?`⚀ ${g.oppName} won`
@@ -3127,12 +3151,12 @@ async function renderSavedGames(){
       :(g.isOnline&&g.myColor==='black'?`⚅ You won`
         :g.isOnline&&g.oppName&&g.myColor==='white'?`⚅ ${g.oppName} won`
         :'⚅ Black won');
+
     const modeLabel=g.mode==='ai'?`vs AI (${g.difficulty})`
-      :g.isOnline&&g.oppName?`vs ${g.oppName} (${g.myColor==='white'?'Black':'White'})`
+      :g.isOnline&&g.oppName?`vs ${g.oppName} (${oppColor})${loserCrownOnline}`
       :'Human vs Human';
-    const outcomesIcon=g.outcomesHiddenClean
-      ?'<span title="Outcomes stayed hidden all game" style="color:var(--gold);font-size:1.1rem;">♔</span>'
-      :'';
+
+    const outcomesIcon=g.isOnline?winnerCrownOnline:myCrownIcon;
     const onlineIcon=g.isOnline
       ?'<span title="Online multiplayer game" style="font-size:1.1rem;">🌐</span>'
       :'';
@@ -3751,6 +3775,8 @@ function applyOnlineMove(m){
     }
 
     moveHistory.push(m);
+    // Track opponent's outcomes state — updated on every move they make
+    if(m.outcomesHiddenClean!=null) oppOutcomesHiddenClean=m.outcomesHiddenClean;
 
     // Trust Firebase record for king captures
     const kingCaptured=m.capture&&m.capturedType==='king';
@@ -3819,9 +3845,10 @@ function publishOnlineMove(fr,fc,tr,tc,path,piece,capturedPiece){
     playerTimeWhite:playerTime.white,
     playerTimeBlack:playerTime.black,
     boardSnapshot,
-    // Include full captured arrays so receiver shows correct Captured By panels
     capturedWhite:captured.white.map(p=>({color:p.color,type:p.type,top:p.ori?.top||1})),
     capturedBlack:captured.black.map(p=>({color:p.color,type:p.type,top:p.ori?.top||1})),
+    // Publish this player's outcomes state so opponent can record it in their History
+    outcomesHiddenClean: outcomesHiddenClean,
   });
 }
 

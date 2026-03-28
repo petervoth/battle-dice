@@ -384,6 +384,16 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
 .stats-clear-btn{margin-top:8px;font-family:'Crimson Text',serif;font-size:.78rem;padding:5px 10px;border-radius:3px;border:1px solid rgba(220,60,60,.3);background:rgba(220,60,60,.06);color:rgba(255,120,100,.65);cursor:pointer;width:100%;transition:all .15s;}
 .stats-clear-btn:hover{background:rgba(220,60,60,.18);}
 
+.lb-entry{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;font-size:.85rem;}
+.lb-entry:nth-child(odd){background:rgba(255,255,255,.03);}
+.lb-entry.lb-me{background:rgba(200,160,60,.1);border:1px solid rgba(200,160,60,.25);}
+.lb-rank{font-family:'Playfair Display',serif;font-weight:700;color:rgba(200,160,60,.6);min-width:28px;text-align:right;}
+.lb-rank.gold{color:#f0d070;}
+.lb-rank.silver{color:#c0c0c0;}
+.lb-rank.bronze{color:#cd7f32;}
+.lb-name{flex:1;color:var(--cream);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lb-score{font-family:'Playfair Display',serif;font-weight:700;color:var(--gold-light);white-space:nowrap;}
+
 /* ========== WHITE THEME OVERRIDES ========== */
 body[data-theme='white']{color:#303028;}
 body[data-theme='white'] h1{color:#555048;text-shadow:0 0 20px rgba(100,90,70,.3),0 1px 3px rgba(0,0,0,.2);}
@@ -729,7 +739,30 @@ body.replay-mode #playback-bar{
     <div id="modal-view-stats" style="display:none;">
       <h2 class="modal-title" style="margin-bottom:8px;">📊 Statistics</h2>
       <div id="stats-content"></div>
-      <button class="modal-btn" style="margin-top:12px;" onclick="showModalView('main')">← Back</button>
+      <button class="modal-btn" style="margin-top:10px;" onclick="showModalView('leaderboard')">
+        <div class="modal-btn-top">
+          <span class="modal-btn-label">🏆 Leaderboard</span>
+          <span class="modal-btn-icon">⚄</span>
+        </div>
+        <span class="modal-btn-desc">Top 100 players globally</span>
+      </button>
+      <button class="modal-btn" style="margin-top:8px;" onclick="showModalView('main')">← Back</button>
+    </div>
+
+    <!-- VIEW: LEADERBOARD -->
+    <div id="modal-view-leaderboard" style="display:none;">
+      <h2 class="modal-title" style="margin-bottom:4px;">🏆 Leaderboard</h2>
+      <div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;" id="lb-tabs">
+        <button class="pb-speed-btn active-speed" onclick="setLbTab('Easy')">Easy</button>
+        <button class="pb-speed-btn" onclick="setLbTab('Medium')">Medium</button>
+        <button class="pb-speed-btn" onclick="setLbTab('Hard')">Hard</button>
+        <button class="pb-speed-btn" onclick="setLbTab('Expert')">Expert</button>
+      </div>
+      <div id="leaderboard-list" style="max-height:340px;overflow-y:auto;
+        scrollbar-width:thin;scrollbar-color:rgba(200,160,60,.3) transparent;">
+        <div class="saved-games-empty">Loading…</div>
+      </div>
+      <button class="modal-btn" style="margin-top:12px;" onclick="showModalView('stats')">← Back</button>
     </div>
 
   </div>
@@ -1363,6 +1396,8 @@ function endGame(msg){
       const prev=parseInt(localStorage.getItem(key))||0;
       if(score>prev) localStorage.setItem(key, score);
     }catch{}
+    // Publish to Firebase leaderboard (reuse diffLabel already declared above)
+    publishScoreToLeaderboard(diffLabel, score, loadNickname());
   } else {
     scoreSection.style.display='none';
   }
@@ -2399,7 +2434,94 @@ function runCinematicThenEndGame(m, isWinner=false){
 }
 
 // ============================================================
-// COLOR THEME ENGINE
+// LEADERBOARD
+// ============================================================
+let currentLbDifficulty='Easy';
+
+async function publishScoreToLeaderboard(difficulty, score, nickname){
+  if(!window._firebaseDB||!window._firebaseUID) return;
+  if(!score||score<=0) return;
+  const uid=window._firebaseUID;
+  const name=nickname||loadNickname()||'Anonymous';
+  const ref=window._firebaseDB.ref('leaderboard/'+uid);
+  try{
+    // Read current best first — only write if new score is higher (extra client-side guard)
+    const snap=await ref.child('scores/'+difficulty+'/best').once('value');
+    const currentBest=snap.val()||0;
+    if(score<=currentBest) return; // Firebase Rules also enforce this server-side
+    await ref.update({
+      nickname: name,
+      updatedAt: Date.now()
+    });
+    await ref.child('scores/'+difficulty).update({best: score});
+    console.log('Leaderboard updated:',difficulty,score);
+  }catch(e){
+    console.warn('Leaderboard publish failed:',e.message);
+  }
+}
+
+async function renderLeaderboard(difficulty){
+  currentLbDifficulty=difficulty;
+  // Update tab highlights
+  document.querySelectorAll('#lb-tabs .pb-speed-btn').forEach(btn=>{
+    btn.classList.toggle('active-speed', btn.textContent===difficulty);
+  });
+  const listEl=document.getElementById('leaderboard-list');
+  listEl.innerHTML='<div class="saved-games-empty">Loading…</div>';
+  if(!window._firebaseDB){
+    listEl.innerHTML='<div class="saved-games-empty">Not connected to Firebase.</div>';
+    return;
+  }
+  try{
+    const snap=await window._firebaseDB.ref('leaderboard')
+      .orderByChild('scores/'+difficulty+'/best')
+      .limitToLast(100)
+      .once('value');
+    const data=snap.val();
+    if(!data){
+      listEl.innerHTML='<div class="saved-games-empty">No scores yet — be the first!</div>';
+      return;
+    }
+    // Sort descending by score
+    const entries=Object.entries(data)
+      .map(([uid,val])=>({
+        uid,
+        nickname: val.nickname||'Anonymous',
+        score: (val.scores&&val.scores[difficulty]&&val.scores[difficulty].best)||0
+      }))
+      .filter(e=>e.score>0)
+      .sort((a,b)=>b.score-a.score)
+      .slice(0,100);
+    if(!entries.length){
+      listEl.innerHTML='<div class="saved-games-empty">No scores yet — be the first!</div>';
+      return;
+    }
+    const myUid=window._firebaseUID||'';
+    listEl.innerHTML='';
+    entries.forEach((e,i)=>{
+      const rank=i+1;
+      const rankClass=rank===1?'gold':rank===2?'silver':rank===3?'bronze':'';
+      const isMe=e.uid===myUid;
+      const row=document.createElement('div');
+      row.className='lb-entry'+(isMe?' lb-me':'');
+      row.innerHTML=`
+        <span class="lb-rank ${rankClass}">${rank}</span>
+        <span class="lb-name">${isMe?'<strong>'+e.nickname+'</strong> (you)':e.nickname}</span>
+        <span class="lb-score">${e.score.toLocaleString()}</span>
+      `;
+      listEl.appendChild(row);
+    });
+  }catch(err){
+    console.error('Leaderboard fetch error:',err);
+    listEl.innerHTML='<div class="saved-games-empty">Failed to load leaderboard.</div>';
+  }
+}
+
+function setLbTab(difficulty){
+  renderLeaderboard(difficulty);
+}
+
+
 // ============================================================
 const THEMES=[
   {
@@ -2678,13 +2800,14 @@ async function autoSaveGame(winnerColor){
 // MODAL VIEW SWITCHING
 // ============================================================
 function showModalView(view){
-  ['main','saved','stats','online'].forEach(v=>{
+  ['main','saved','stats','online','leaderboard'].forEach(v=>{
     const el=document.getElementById(`modal-view-${v}`);
     if(el) el.style.display=(v===view)?'block':'none';
   });
   if(view==='saved') renderSavedGames();
   if(view==='stats') renderStatsView();
   if(view==='online') resetOnlineLobbyUI();
+  if(view==='leaderboard') renderLeaderboard('Easy');
   document.getElementById('diff-select').style.display='none';
 }
 
@@ -3475,8 +3598,17 @@ async function migrateScores(){
       const tx=db.transaction('games','readwrite');
       const store=tx.objectStore('games');
       toUpdate.forEach(record=>store.put(record));
-      tx.oncomplete=()=>{
+      tx.oncomplete=async()=>{
         console.log(`Score migration: backfilled ${toUpdate.length} game(s).`);
+        // Publish best score per difficulty to leaderboard
+        const bestPerDiff={};
+        toUpdate.forEach(g=>{
+          if(!bestPerDiff[g.difficulty]||g.score>bestPerDiff[g.difficulty])
+            bestPerDiff[g.difficulty]=g.score;
+        });
+        for(const [diff,score] of Object.entries(bestPerDiff)){
+          await publishScoreToLeaderboard(diff, score, loadNickname());
+        }
         resolve();
       };
       tx.onerror=()=>reject(tx.error);
@@ -3520,23 +3652,35 @@ if(typeof ResizeObserver !== 'undefined'){
 
   loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js', function() {
     loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js', function() {
-      try {
-        var app = firebase.initializeApp({
-          apiKey:"AIzaSyDY1_x1erH0m2LmzTxaLvJ-dF91TphfKTc",
-          authDomain:"battle-dice-8df3b.firebaseapp.com",
-          databaseURL:"https://battle-dice-8df3b-default-rtdb.firebaseio.com",
-          projectId:"battle-dice-8df3b",
-          storageBucket:"battle-dice-8df3b.firebasestorage.app",
-          messagingSenderId:"572125800798",
-          appId:"1:572125800798:web:c90449f24ae7e17c3e47cf"
-        });
-        window._firebaseDB = firebase.database();
-        window._firebaseReady = true;
-        console.log('Firebase compat ready');
-      } catch(e) {
-        console.error('Firebase init error:', e);
-        window._firebaseError = e.message;
-      }
+      loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js', function() {
+        try {
+          var app = firebase.initializeApp({
+            apiKey:"AIzaSyDY1_x1erH0m2LmzTxaLvJ-dF91TphfKTc",
+            authDomain:"battle-dice-8df3b.firebaseapp.com",
+            databaseURL:"https://battle-dice-8df3b-default-rtdb.firebaseio.com",
+            projectId:"battle-dice-8df3b",
+            storageBucket:"battle-dice-8df3b.firebasestorage.app",
+            messagingSenderId:"572125800798",
+            appId:"1:572125800798:web:c90449f24ae7e17c3e47cf"
+          });
+          window._firebaseDB = firebase.database();
+          window._firebaseAuth = firebase.auth();
+          window._firebaseReady = true;
+          // Sign in anonymously — gives each player a persistent uid
+          firebase.auth().signInAnonymously()
+            .then(function(result) {
+              window._firebaseUID = result.user.uid;
+              console.log('Firebase anonymous auth ready, uid:', window._firebaseUID);
+            })
+            .catch(function(e) {
+              console.warn('Anonymous auth failed:', e.message);
+            });
+          console.log('Firebase compat ready');
+        } catch(e) {
+          console.error('Firebase init error:', e);
+          window._firebaseError = e.message;
+        }
+      });
     });
   });
 })();

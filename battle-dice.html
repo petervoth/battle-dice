@@ -540,6 +540,43 @@ body[data-theme='white'] .saved-game-title{color:#555048;}
 body[data-theme='white'] .move-num{color:rgba(100,90,70,.6);}
 body[data-theme='white'] .mv-die,.mv-result{color:#303028;}
 body[data-theme='white'] #mode-badge,body[data-theme='white'] #status{color:rgba(48,48,40,.55);}
+/* ── SEASONAL THEME OVERRIDES ── */
+
+/* Easter: pastel board squares */
+body[data-theme='easter'] #board .cell.dark{background:#a8d8ea;}
+body[data-theme='easter'] #board .cell.light{background:#fde8f0;}
+body[data-theme='easter'] .kbg.w{background:radial-gradient(circle at 35% 35%,#fffbe8,#f0e8d8);}
+
+/* Summer: bright blue/green board */
+body[data-theme='summer'] #board .cell.dark{background:#2196a0;}
+body[data-theme='summer'] #board .cell.light{background:#d4f0a0;}
+
+/* Halloween: orange/purple board */
+body[data-theme='halloween'] #board .cell.dark{background:#4a0080;}
+body[data-theme='halloween'] #board .cell.light{background:#e86010;}
+body[data-theme='halloween'] .kbg.w{background:radial-gradient(circle at 35% 35%,#ff9040,#e06010);}
+
+/* Christmas: red/green board */
+body[data-theme='christmas'] #board .cell.dark{background:#0a5a18;}
+body[data-theme='christmas'] #board .cell.light{background:#f8d8d8;}
+
+/* New Years: silver/dark board */
+body[data-theme='new-years'] #board .cell.dark{background:#303030;}
+body[data-theme='new-years'] #board .cell.light{background:#d8d8d8;}
+body[data-theme='new-years'] .kbg.w{background:radial-gradient(circle at 35% 35%,#f0e890,#d4b820);}
+
+/* Valentine: pink/white board */
+body[data-theme='valentine'] #board .cell.dark{background:#b03050;}
+body[data-theme='valentine'] #board .cell.light{background:#fde8f0;}
+
+/* Rainbow: animated hue-rotate on board */
+body[data-theme='rainbow'] #board-outer{animation:rainbow-board 6s linear infinite;}
+body[data-theme='rainbow'] h1{animation:rainbow-text 4s linear infinite;}
+body[data-theme='rainbow'] #board .cell.dark{background:#5a00aa;}
+body[data-theme='rainbow'] #board .cell.light{background:#f0e0ff;}
+@keyframes rainbow-board{0%{filter:hue-rotate(0deg);}100%{filter:hue-rotate(360deg);}}
+@keyframes rainbow-text{0%{color:#ff4444;}17%{color:#ff9900;}33%{color:#aacc00;}50%{color:#00bbcc;}67%{color:#4488ff;}83%{color:#aa44ff;}100%{color:#ff4444;}}
+
 body[data-theme='white'] .modal-backdrop:not(.fully-black){background:rgba(180,176,164,.88);}
 
 #playback-bar{
@@ -645,7 +682,7 @@ body.replay-mode #playback-bar{
 </style>
 </head>
 <body>
-<h1 onclick="cycleTheme()">⚄ Battle Dice ⚅</h1>
+<h1 onclick="cycleTheme()"><span id="h1-theme-icon-left" style="font-size:.75em;transition:opacity .3s;"></span> ⚄ Battle Dice ⚅ <span id="h1-theme-icon-right" style="font-size:.75em;transition:opacity .3s;"></span></h1>
 <div id="game-container">
 
   <!-- MOVE HISTORY PANEL -->
@@ -753,7 +790,6 @@ body.replay-mode #playback-bar{
     <button id="btn-outcomes" onclick="toggleOutcomes()">⚄ Show Outcomes</button>
     <button id="btn-draw" onclick="offerDraw()" style="display:none;">🤝 Offer Draw</button>
     <button onclick="showStartModal()">☰ Main Menu</button>
-    <button onclick="rematch()">↺ Rematch</button>
     <button id="sound-toggle-btn" onclick="toggleSound()" style="font-size:1rem;">🔊</button>
 
     <div class="ibox">
@@ -910,7 +946,11 @@ body.replay-mode #playback-bar{
 
     <!-- VIEW: MAIN MENU -->
     <div id="modal-view-main">
-      <div class="modal-crown">⚄</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:2px;">
+        <span id="modal-theme-icon-left" style="font-size:1.6rem;line-height:1;transition:opacity .3s;"></span>
+        <div class="modal-crown">⚄</div>
+        <span id="modal-theme-icon-right" style="font-size:1.6rem;line-height:1;transition:opacity .3s;"></span>
+      </div>
       <h2 class="modal-title" style="cursor:pointer;" onclick="cycleTheme()">Battle Dice</h2>
       <div style="margin-bottom:12px;">
         <div style="font-size:.72rem;color:rgba(245,230,200,.45);text-transform:uppercase;
@@ -4055,17 +4095,118 @@ const THEMES=[
       '--modal-bg1':'#1e1e1e','--modal-bg2':'#0e0e0e',
     }
   },
+  {
+    name:'New Years',
+    vars:{
+      '--gold':'#c0c0c0','--gold-light':'#e8d060','--cream':'#f0f0f0',
+      '--board-dark':'#2a2a2a','--board-light':'#c8c8c8',
+      '--panel-bg':'#0a0a0a','--bg-radial1':'#1a1a1a','--bg-radial2':'#101010',
+      '--board-frame1':'#505050','--board-frame2':'#303030',
+      '--accent-glow':'rgba(200,200,60,.45)',
+      '--modal-bg1':'#1c1c1c','--modal-bg2':'#0e0e0e',
+    }
+  },
+  {
+    name:'Valentine',
+    vars:{
+      '--gold':'#e05080','--gold-light':'#f8a0b8','--cream':'#fff0f4',
+      '--board-dark':'#8a1a30','--board-light':'#fddde6',
+      '--panel-bg':'#1a0008','--bg-radial1':'#38001a','--bg-radial2':'#200010',
+      '--board-frame1':'#6a1020','--board-frame2':'#3a0810',
+      '--accent-glow':'rgba(220,60,100,.5)',
+      '--modal-bg1':'#2e0818','--modal-bg2':'#180008',
+    }
+  },
+  {
+    name:'Easter',
+    vars:{
+      '--gold':'#b090d0','--gold-light':'#e0b0f0','--cream':'#f8f0ff',
+      '--board-dark':'#7ab0c8','--board-light':'#fde8f0',
+      '--panel-bg':'#0a101a','--bg-radial1':'#1a2030','--bg-radial2':'#101825',
+      '--board-frame1':'#a0c890','--board-frame2':'#78a868',
+      '--accent-glow':'rgba(180,140,220,.45)',
+      '--modal-bg1':'#1e1a2e','--modal-bg2':'#10101e',
+    }
+  },
+  {
+    name:'Summer',
+    vars:{
+      '--gold':'#30a840','--gold-light':'#f0d020','--cream':'#f8fff0',
+      '--board-dark':'#1a6a30','--board-light':'#a8e0f8',
+      '--panel-bg':'#001a08','--bg-radial1':'#002a10','--bg-radial2':'#001808',
+      '--board-frame1':'#1a5a20','--board-frame2':'#0e3a14',
+      '--accent-glow':'rgba(40,180,60,.5)',
+      '--modal-bg1':'#002814','--modal-bg2':'#001208',
+    }
+  },
+  {
+    name:'Halloween',
+    vars:{
+      '--gold':'#e06010','--gold-light':'#f09030','--cream':'#fff0e0',
+      '--board-dark':'#380060','--board-light':'#e88030',
+      '--panel-bg':'#080010','--bg-radial1':'#180030','--bg-radial2':'#0c0020',
+      '--board-frame1':'#200040','--board-frame2':'#100020',
+      '--accent-glow':'rgba(220,90,10,.55)',
+      '--modal-bg1':'#180028','--modal-bg2':'#0a0018',
+    }
+  },
+  {
+    name:'Christmas',
+    vars:{
+      '--gold':'#c81010','--gold-light':'#f04040','--cream':'#fff8f8',
+      '--board-dark':'#0a4a18','--board-light':'#f8d0d0',
+      '--panel-bg':'#030e06','--bg-radial1':'#071a0a','--bg-radial2':'#041206',
+      '--board-frame1':'#8a0808','--board-frame2':'#580404',
+      '--accent-glow':'rgba(200,20,20,.5)',
+      '--modal-bg1':'#0e1e0e','--modal-bg2':'#060e06',
+    }
+  },
+  {
+    name:'Rainbow',
+    vars:{
+      '--gold':'#ff6060','--gold-light':'#ffcc00','--cream':'#ffffff',
+      '--board-dark':'#3a006a','--board-light':'#f0e8ff',
+      '--panel-bg':'#080010','--bg-radial1':'#12002a','--bg-radial2':'#0a0018',
+      '--board-frame1':'#200050','--board-frame2':'#100030',
+      '--accent-glow':'rgba(255,100,200,.5)',
+      '--modal-bg1':'#16002e','--modal-bg2':'#0a0018',
+    }
+  },
 ];
 
 let currentThemeIndex=0;
+
+const THEME_ICONS={
+  'Green':      '',
+  'Burgundy':   '',
+  'Royal Blue': '',
+  'Purple':     '',
+  'Golden':     '',
+  'Orange':     '',
+  'White':      '',
+  'Dark Gray':  '',
+  'New Years':  '🥂',
+  'Valentine':  '💝',
+  'Easter':     '🐣',
+  'Summer':     '☀️',
+  'Halloween':  '🎃',
+  'Christmas':  '🎄',
+  'Rainbow':    '🌈',
+};
 
 function applyTheme(idx){
   const t=THEMES[idx];
   const root=document.documentElement;
   Object.entries(t.vars).forEach(([k,v])=>root.style.setProperty(k,v));
-  // Tag body with theme name for CSS overrides (e.g. light themes)
   document.body.dataset.theme=t.name.toLowerCase().replace(' ','-');
   try{ localStorage.setItem('battleDiceTheme', idx); }catch{}
+  // Update theme icons in both locations
+  const icon=THEME_ICONS[t.name]||'';
+  ['modal-theme-icon-left','modal-theme-icon-right',
+   'h1-theme-icon-left','h1-theme-icon-right'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=icon;
+  });
 }
 
 function cycleTheme(){

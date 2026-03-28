@@ -2820,12 +2820,18 @@ function checkAchievements(winnerColor, mode, depth, rounds, humanTimeSec, outco
   const totalGames=(allStats.totalGames||0);
 
   // MILESTONES
-  if(!data['first_win']&&winnerColor) unlockAchievement('first_win');
+  // first_win: human wins — in AI mode human is always white, in online/local human could be either color
+  const humanWon = winnerColor && (
+    mode==='ai' ? winnerColor==='white' :
+    mode==='online' ? winnerColor===onlineMyColor :
+    !!winnerColor // local vs: either player counts
+  );
+  if(!data['first_win']&&humanWon) unlockAchievement('first_win');
   if(!data['ai_slayer']&&mode==='ai'&&winnerColor==='white') unlockAchievement('ai_slayer');
   if(!data['connected']&&mode==='online') unlockAchievement('connected');
 
-  if(winnerColor){
-    // SKILL — only on wins
+  if(humanWon){
+    // SKILL — only on human wins
     const humanMs=humanTimeSec*1000;
     if(humanMs>0&&humanMs<60000) unlockAchievement('speed_demon');
     if(rounds<=5) unlockAchievement('blitz');
@@ -2839,6 +2845,7 @@ function checkAchievements(winnerColor, mode, depth, rounds, humanTimeSec, outco
     setConsecutiveWins(streak);
     if(streak>=3) unlockAchievement('on_a_roll');
   } else {
+    // Human did not win — reset streak
     setConsecutiveWins(0);
   }
 
@@ -4291,13 +4298,16 @@ async function renderSavedGames(){
       ? ' <span title="Opponent hid Outcomes all game" style="color:var(--gold);font-size:1rem;">♔</span>'
       : '';
 
-    const winnerLabel=g.winner==='white'
-      ?(g.isOnline&&g.myColor==='white'?`⚀ You won`
-        :g.isOnline&&g.oppName&&g.myColor==='black'?`⚀ ${g.oppName} won`
-        :'⚀ White won')
-      :(g.isOnline&&g.myColor==='black'?`⚅ You won`
-        :g.isOnline&&g.oppName&&g.myColor==='white'?`⚅ ${g.oppName} won`
-        :'⚅ Black won');
+    // Determine if the human won this game
+    const humanColor = g.myColor || (g.mode==='ai' ? 'white' : null);
+    const humanWon = g.winner && (humanColor ? g.winner===humanColor : !!g.winner);
+    const isDraw = !g.winner;
+
+    const winnerLabel = isDraw
+      ? `🤝 Draw`
+      : humanWon
+        ? `<span style="color:rgba(100,220,120,.9);">✓ You won</span>`
+        : `<span style="color:rgba(220,100,100,.8);">✕ You lost</span>`;
 
     const modeLabel=g.mode==='ai'?`vs AI (${g.difficulty})`
       :g.isOnline&&g.oppName?`vs ${g.oppName} (${oppColor})${loserCrownOnline}`

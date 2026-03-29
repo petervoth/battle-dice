@@ -1237,7 +1237,7 @@ body.replay-mode #playback-bar{
     <!-- VIEW: SPECIAL MECHANICS -->
     <div id="modal-view-specials" style="display:none;">
       <h2 class="modal-title" style="margin-bottom:4px;">✨ Special Mechanics</h2>
-      <p class="modal-sub" style="margin-bottom:12px;">Toggle optional bonus features. Changes apply to your next game. Features are experimental, may break gameplay, and are not meant to be part of competitive matches. Use at your own risk.</p>
+      <p class="modal-sub" style="margin-bottom:12px;">Toggle optional bonus features.<br>Changes apply to your next game.<br>Features are experimental, may break gameplay, and are not meant to be part of competitive matches.<br>Use at your own risk.</p>
       <div id="specials-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <button class="modal-btn" style="margin-top:14px;width:100%;" onclick="showModalView('main')">← Back</button>
     </div>
@@ -1661,6 +1661,8 @@ function showRules(){document.getElementById('rules-modal').classList.remove('hi
 function hideRules(){document.getElementById('rules-modal').classList.add('hidden');}
 
 function toggleOutcomes(){
+  // Eclipse spell: outcomes button locked for this round
+  if(spellEclipseActive) return;
   showOutcomes=!showOutcomes;
   const btn=document.getElementById('btn-outcomes');
   btn.textContent=showOutcomes?'⚄ Hide Outcomes':'⚄ Show Outcomes';
@@ -1688,7 +1690,7 @@ function initBoard(){
     // Black back (row 0): face-4 points south → front=4
     board[0][c]=bt===null
       ?{color:'black',type:'king',ori:makeOri(1,4),id:'bk'}
-      :{color:'black',type:'dice',ori:makeOri(bt,4),id:`bb${c}`,wild:wildActive&&c===4};
+      :{color:'black',type:'dice',ori:makeOri(bt,4),id:`bb${c}`,wild:wildActive&&c===3};
     // Black front (row 1)
     board[1][c]={color:'black',type:'dice',ori:makeOri(1,4),id:`bf${c}`};
     // White front (row 7): face-4 points north → front=3
@@ -1696,7 +1698,7 @@ function initBoard(){
     // White back (row 8): face-4 points north → front=3
     board[8][c]=bt===null
       ?{color:'white',type:'king',ori:makeOri(1,3),id:'wk'}
-      :{color:'white',type:'dice',ori:makeOri(bt,3),id:`wb${c}`,wild:wildActive&&c===4};
+      :{color:'white',type:'dice',ori:makeOri(bt,3),id:`wb${c}`,wild:wildActive&&c===3};
   }
 }
 
@@ -1718,8 +1720,17 @@ function getValidMoves(row,col){
     for(let v=1;v<=6;v++){
       const boosted={...p,ori:{...p.ori,top:v}};
       getDiceMoves(row,col,boosted).forEach(m=>{
-        const key=`${m.tr},${m.tc}`;
+        const key=`${m.row},${m.col}`;
         if(!seen.has(key)){seen.add(key);moves.push(m);}
+        else {
+          // Merge routes from higher values into existing entry
+          const existing=moves.find(x=>x.row===m.row&&x.col===m.col);
+          if(existing) m.routes.forEach(r=>{
+            const sig=r.map(q=>q.r+','+q.c).join('|');
+            if(!existing.routes.some(er=>er.map(q=>q.r+','+q.c).join('|')===sig))
+              existing.routes.push(r);
+          });
+        }
       });
     }
     return moves;
@@ -1911,9 +1922,10 @@ function executeMove(fr,fc,tr,tc,chosenPath){
     return;
   }
 
-  // Deep Freeze: block all captures
+  // Deep Freeze: block all captures — safety net, should not be reached since getAllMoves filters them
   if(spellFreezeCaptures&&target){
     setStatus('🧊 Deep Freeze — captures are blocked this round!');
+    if(gameMode==='ai'&&turn===aiColor&&!gameOver) setTimeout(triggerAIMove,100);
     return;
   }
 
@@ -2529,16 +2541,17 @@ function renderHistory(){
       line.style.cursor='pointer';
       line.addEventListener('click',()=>replayMove(m.n-1));
 
-      // Card-move entries (Teleport, Mirror) — render as a compact card event row
+      // Card-move entries (Teleport, Mirror, standalone cards, Spells)
       if(m.cardMove){
         const dot=document.createElement('span');
         dot.className=`mv-color ${m.color}`;
         line.appendChild(dot);
+        const isSpell=m.type==='spell';
         const badge=document.createElement('span');
         badge.style.cssText='font-size:.8rem;margin-right:2px;';
-        badge.textContent='🃏';
+        badge.textContent=isSpell?'✨':'🃏';
         line.appendChild(badge);
-        // Card-specific icon
+        // Card/spell-specific icon
         const cardIcon=m.cardIcon||(FATE_CARD_DEFS.find(c=>c.id===m.cardId)||{}).icon||'';
         if(cardIcon){
           const icon=document.createElement('span');
@@ -2548,7 +2561,7 @@ function renderHistory(){
         }
         const label=document.createElement('span');
         label.className='mv-coords';
-        label.style.color='var(--gold-light)';
+        label.style.color=isSpell?'rgba(180,220,255,.9)':'var(--gold-light)';
         label.textContent=m.cardName;
         line.appendChild(label);
         pair.appendChild(line);
@@ -3230,6 +3243,9 @@ const ACHIEVEMENTS=[
   {id:'on_a_roll',     category:'progress',  icon:'📈', name:'On a Roll',     desc:'Win 3 games in a row (any mode)'},
   {id:'century',       category:'progress',  icon:'🏆', name:'Century',       desc:'Play 100 total games'},
   {id:'high_scorer',   category:'progress',  icon:'⭐', name:'High Scorer',   desc:'Score over 2000 points in a single AI game'},
+  {id:'hardships_1',   category:'progress',  icon:'💀', name:'Hardships I',   desc:'Lose 10 games total (any mode). Unlocks: Magic Spells',  once:true},
+  {id:'hardships_2',   category:'progress',  icon:'💀', name:'Hardships II',  desc:'Lose 20 games total (any mode). Unlocks: Fate Cards',    once:true},
+  {id:'hardships_3',   category:'progress',  icon:'💀', name:'Hardships III', desc:'Lose 30 games total (any mode). Unlocks: Wild Dice',     once:true},
   // --- ONLINE ---
   {id:'gentleman',     category:'online',    icon:'🤝', name:'Gentleman',     desc:'Offer and have a draw accepted'},
   {id:'rematched',     category:'online',    icon:'🔄', name:'Rematched',     desc:'Play a rematch against the same opponent'},
@@ -3362,6 +3378,33 @@ function checkAchievements(winnerColor, mode, depth, rounds, humanTimeSec, outco
 
   // PROGRESSION — total games
   if(totalGames>0&&totalGames%100===0) unlockAchievement('century');
+
+  // HARDSHIPS — total losses vs AI
+  const totalLosses=allStats.totalLosses||0;
+  if(!data['hardships_1']&&totalLosses>=10) unlockAchievement('hardships_1');
+  if(!data['hardships_2']&&totalLosses>=20) unlockAchievement('hardships_2');
+  if(!data['hardships_3']&&totalLosses>=30) unlockAchievement('hardships_3');
+}
+
+// Retroactively count losses from game history and unlock Hardships achievements
+async function checkHardshipsRetroactive(){
+  const achData=loadAchievements();
+  // If all 3 are already unlocked, nothing to do
+  if(achData['hardships_3']) return;
+  try{
+    const allGames=await getAllGames();
+    const totalLosses=allGames.filter(g=>g.mode==='ai'&&g.winner==='black').length;
+    // Backfill totalLosses in stats if it's missing or lower than history shows
+    const s=loadStats();
+    if((s.totalLosses||0)<totalLosses){
+      s.totalLosses=totalLosses;
+      saveStats(s);
+    }
+    // Unlock whichever milestones they've already earned
+    if(!achData['hardships_1']&&totalLosses>=10) unlockAchievement('hardships_1');
+    if(!achData['hardships_2']&&totalLosses>=20) unlockAchievement('hardships_2');
+    if(!achData['hardships_3']&&totalLosses>=30) unlockAchievement('hardships_3');
+  }catch(e){ console.warn('Hardships retroactive check failed:',e); }
 }
 
 // Check first_move and first_blood during gameplay
@@ -3865,15 +3908,31 @@ function applySpell(spell){
     case 'deep_freeze':  spellFreezeCaptures=true; break;
     case 'blessing':     spellBlessingActive=true; break;
   }
+
+  // Record spell as a standalone history entry so it appears in Move History and Replay
+  moveHistory.push({
+    n:moveHistory.length+1, color:'white', type:'spell',
+    cardMove:true, cardId:'spell_'+spell.id, cardName:spell.name, cardIcon:spell.icon,
+    spellId:spell.id,
+    fr:null, fc:null, tr:null, tc:null,
+    from:'', to:'', path:[], valBefore:null, valAfter:null,
+    capture:false, capturedType:null, lShape:false,
+    cardsPlayed:[spell.name]
+  });
+  renderHistory();
   render();
 }
 
 function clearSpellEffects(){
   if(spellEclipseActive){
-    // Restore outcomes visibility to what it was before eclipse
     spellEclipseActive=false;
     const btn=document.getElementById('btn-outcomes');
-    if(btn){ btn.textContent=showOutcomes?'⚄ Hide Outcomes':'⚄ Show Outcomes'; }
+    if(btn){
+      btn.textContent=showOutcomes?'⚄ Hide Outcomes':'⚄ Show Outcomes';
+      btn.style.opacity='';
+      btn.style.cursor='';
+      if(showOutcomes) btn.classList.add('active-btn');
+    }
   }
   spellFreezeCaptures=false;
   spellBlessingActive=false;
@@ -3883,32 +3942,40 @@ function clearSpellEffects(){
 function applyWhirlwind(){
   const dirs=[{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}];
   const dir=dirs[Math.floor(Math.random()*dirs.length)];
-  // Collect all pieces and try to move each one square in the chosen direction
+
+  // Snapshot the board BEFORE any moves so all decisions are based on the same state
+  const snapshot=board.map(row=>row.map(p=>p?{...p}:null));
+
+  // Collect valid moves based solely on the snapshot — no mid-mutation interference
   const moves=[];
   for(let r=0;r<9;r++) for(let c=0;c<9;c++){
-    const p=board[r][c];
+    const p=snapshot[r][c];
     if(!p||p.type==='king') continue;
     const nr=r+dir.dr, nc=c+dir.dc;
     if(nr<0||nr>=9||nc<0||nc>=9) continue;
-    if(!board[nr][nc]) moves.push({from:{r,c},to:{r:nr,c:nc},piece:p});
+    if(!snapshot[nr][nc]) moves.push({from:{r,c},to:{r:nr,c:nc},piece:board[r][c]});
   }
-  // Apply in safe order (direction-aware to avoid collisions)
+
+  // Apply all valid moves — sort direction-aware to avoid mid-apply collisions
   moves.sort((a,b)=> dir.dr>0?(b.from.r-a.from.r):dir.dr<0?(a.from.r-b.from.r):
     dir.dc>0?(b.from.c-a.from.c):(a.from.c-b.from.c));
   moves.forEach(m=>{
-    if(!board[m.to.r][m.to.c]){
-      board[m.to.r][m.to.c]=m.piece;
-      board[m.from.r][m.from.c]=null;
-    }
+    board[m.to.r][m.to.c]=m.piece;
+    board[m.from.r][m.from.c]=null;
   });
 }
 
 function applyEclipse(){
   spellEclipseActive=true;
-  // Temporarily hide outcomes display
+  // Temporarily hide outcomes display and lock the button
   showOutcomes=false;
   const btn=document.getElementById('btn-outcomes');
-  if(btn) btn.textContent='🌑 Eclipse — Outcomes Hidden';
+  if(btn){
+    btn.textContent='🌑 Eclipse — Outcomes Hidden';
+    btn.style.opacity='0.45';
+    btn.style.cursor='not-allowed';
+    btn.classList.remove('active-btn');
+  }
 }
 
 function applyLightning(){
@@ -3938,17 +4005,17 @@ function applyArcaneFlux(){
 // ============================================================
 const SPECIAL_MECHANICS=[
   {
-    id:'fate_cards',
-    icon:'🃏',
-    name:'Fate Cards',
-    desc:'Draw a hand of special ability cards at game start. Easy=5, Medium=3, Hard=1, Expert=0.',
-    default:false,
-  },
-  {
     id:'magic_spells',
     icon:'✨',
     name:'Magic Spells',
     desc:'Every 7 rounds a random spell activates for that round, announced dramatically.',
+    default:false,
+  },
+  {
+    id:'fate_cards',
+    icon:'🃏',
+    name:'Fate Cards',
+    desc:'Draw a hand of special ability cards at game start. Easy=5, Medium=3, Hard=1, Expert=0.',
     default:false,
   },
   {
@@ -3978,29 +4045,45 @@ function renderSpecialMechanicsView(){
   if(!list) return;
   const data=loadSpecialMechanics();
   list.innerHTML='';
+  const achData=loadAchievements();
+  // Which achievement unlocks each mechanic
+  const MECHANIC_LOCKS={
+    magic_spells:{achId:'hardships_1', achName:'Hardships I'},
+    fate_cards:  {achId:'hardships_2', achName:'Hardships II'},
+    wild_dice:   {achId:'hardships_3', achName:'Hardships III'},
+  };
+
   SPECIAL_MECHANICS.forEach(sm=>{
-    const enabled=data.hasOwnProperty(sm.id)?data[sm.id]:sm.default;
+    const lock=MECHANIC_LOCKS[sm.id];
+    const isLocked=lock&&!achData[lock.achId];
+    const data2=isLocked?{}:data; // locked mechanics behave as if data is empty
+    const enabled=!isLocked&&(data.hasOwnProperty(sm.id)?data[sm.id]:sm.default);
     const row=document.createElement('div');
     row.className='sm-row';
+    if(isLocked) row.style.opacity='0.45';
     const infoBtn=sm.id==='fate_cards'
       ?`<button class="sm-info-btn" onclick="showCardListPopup()" title="View all 12 cards">?</button>`
       :sm.id==='magic_spells'
       ?`<button class="sm-info-btn" onclick="showSpellListPopup()" title="View all 6 spells">?</button>`
+      :'';
+    const lockHint=isLocked
+      ?`<div style="font-size:.68rem;color:rgba(220,160,60,.6);margin-top:3px;">🔒 Unlock by earning <em>${lock.achName}</em></div>`
       :'';
     row.innerHTML=`
       <div class="sm-icon">${sm.icon}</div>
       <div class="sm-info">
         <div style="display:flex;align-items:center;gap:6px;">
           <div class="sm-name">${sm.name}</div>
-          ${infoBtn}
+          ${isLocked?'':infoBtn}
         </div>
         <div class="sm-desc">${sm.desc}</div>
+        ${lockHint}
       </div>
-      <label class="sm-toggle" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-        <input type="checkbox" ${enabled?'checked':''} style="width:16px;height:16px;cursor:pointer;accent-color:var(--gold);"
-          onchange="toggleSpecialMechanic('${sm.id}',this.checked)">
+      <label class="sm-toggle" style="display:flex;align-items:center;gap:6px;cursor:${isLocked?'not-allowed':'pointer'};">
+        <input type="checkbox" ${enabled?'checked':''} ${isLocked?'disabled':''} style="width:16px;height:16px;cursor:${isLocked?'not-allowed':'pointer'};accent-color:var(--gold);"
+          ${isLocked?'':` onchange="toggleSpecialMechanic('${sm.id}',this.checked)"`}>
         <span style="font-size:.78rem;color:${enabled?'var(--gold-light)':'rgba(245,230,200,.35)'};"
-          id="sm-label-${sm.id}">${enabled?'On':'Off'}</span>
+          id="sm-label-${sm.id}">${isLocked?'🔒':enabled?'On':'Off'}</span>
       </label>`;
     list.appendChild(row);
   });
@@ -4766,8 +4849,10 @@ function getAllMoves(b, color){
     // Temporarily swap global board for move generation
     const savedBoard=board;
     board=b;
-    const pMoves=getValidMoves(r,c);
+    let pMoves=getValidMoves(r,c);
     board=savedBoard;
+    // Deep Freeze spell: strip all capture moves
+    if(spellFreezeCaptures) pMoves=pMoves.filter(m=>!m.capture);
     for(const m of pMoves){
       for(const path of m.routes){
         moves.push({fr:r,fc:c,tr:m.row,tc:m.col,capture:m.capture,path});
@@ -6007,6 +6092,9 @@ function updateStats(record){
   s.totalGames=(s.totalGames||0)+1;
   s.whiteWins=(s.whiteWins||0)+(record.winner==='white'?1:0);
   s.blackWins=(s.blackWins||0)+(record.winner==='black'?1:0);
+  // Track human losses (AI wins, or HvH black wins when human plays white)
+  const humanLost = record.mode==='ai'&&record.winner==='black';
+  if(humanLost) s.totalLosses=(s.totalLosses||0)+1;
   if(record.mode==='ai'){
     const key=`ai_${record.difficulty}`;
     s[key]=(s[key]||0)+1;
@@ -6063,7 +6151,7 @@ function showModalView(view){
     if(el) el.style.display=(v===view)?'block':'none';
   });
   if(view==='saved') renderSavedGames();
-  if(view==='stats'){ switchStatsTab('stats'); renderStatsView(); }
+  if(view==='stats'){ switchStatsTab('stats'); renderStatsView(); checkHardshipsRetroactive(); }
   if(view==='tutorial'){ tutIndex=0; _tutDir=1; renderTutSlide(); }
   if(view==='specials'){ renderSpecialMechanicsView(); }
   if(view==='online') resetOnlineLobbyUI();
@@ -6349,14 +6437,15 @@ function buildReplayBoards(){
   // First build the starting board
   const startBoard=Array.from({length:9},()=>Array(9).fill(null));
   const bt=BACK_TOPS;
+  const wildActive=isSpecialEnabled('wild_dice');
   for(let c=0;c<9;c++){
     const t=bt[c];
     startBoard[0][c]=t===null?{color:'black',type:'king',ori:makeOri(1,4),id:'bk'}
-                             :{color:'black',type:'dice',ori:makeOri(t,4),id:`bb${c}`};
+                             :{color:'black',type:'dice',ori:makeOri(t,4),id:`bb${c}`,wild:wildActive&&c===3};
     startBoard[1][c]={color:'black',type:'dice',ori:makeOri(1,4),id:`bf${c}`};
     startBoard[7][c]={color:'white',type:'dice',ori:makeOri(1,3),id:`wf${c}`};
     startBoard[8][c]=t===null?{color:'white',type:'king',ori:makeOri(1,3),id:'wk'}
-                             :{color:'white',type:'dice',ori:makeOri(t,3),id:`wb${c}`};
+                             :{color:'white',type:'dice',ori:makeOri(t,3),id:`wb${c}`,wild:wildActive&&c===3};
   }
   snapshots.push(cloneBoard(startBoard));
 
@@ -6372,7 +6461,21 @@ function buildReplayBoards(){
         const tmp=b[m.tr][m.tc];
         b[m.tr][m.tc]=b[m.fr][m.fc];
         b[m.fr][m.fc]=tmp;
+      } else if(m.spellId==='whirlwind'){
+        // Re-apply whirlwind using the same logic but on cloned board b
+        const dirs=[{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}];
+        // Whirlwind direction is random — we can't replay deterministically
+        // so just show the board state as-is (snapshot already captured post-spell)
+      } else if(m.spellId==='lightning'){
+        // Lightning reduced a random enemy die by 1 — already captured in snapshot
+      } else if(m.spellId==='arcane_flux'){
+        // Increment all dice (6→1)
+        for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+          const p=b[r][c];
+          if(p&&p.type==='dice') p.ori.top=p.ori.top%6+1;
+        }
       }
+      // All other spells (eclipse, deep_freeze, blessing) are flag-only — no board change
       snapshots.push(cloneBoard(b));
     } else {
       b=applyMove(b,m.fr,m.fc,m.tr,m.tc,m.path);

@@ -599,16 +599,17 @@ body[data-theme='white'] #mode-badge,body[data-theme='white'] #status{color:rgba
   margin-top:4px;
 }
 #card-tray.visible{
-  display:flex;
-  flex-direction:column;
+  display:grid;
+  grid-template-columns:1fr;
+  grid-auto-rows:1fr;
   gap:5px;
 }
 .fate-card{
   display:flex;flex-direction:row;align-items:center;
-  width:100%;min-height:52px;border-radius:7px;padding:6px 8px;cursor:pointer;
+  width:100%;border-radius:7px;padding:6px 8px;cursor:pointer;
   border:1.5px solid rgba(200,160,60,.5);background:rgba(15,30,20,.92);
   transition:transform .15s, box-shadow .15s, opacity .2s;
-  position:relative;user-select:none;gap:8px;
+  position:relative;user-select:none;gap:8px;box-sizing:border-box;
 }
 .fate-card:hover:not(.used):not(.targeting){
   transform:translateX(3px);

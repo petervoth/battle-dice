@@ -2201,14 +2201,17 @@ function endGame(msg){
       `<br>Outcomes ${outcomesPct}`;
     scoreSection.style.display='block';
 
-    // Update all-time high score in localStorage
-    const key=`bestScore_ai_${aiDepth}`;
-    try{
-      const prev=parseInt(localStorage.getItem(key))||0;
-      if(score>prev) localStorage.setItem(key, score);
-    }catch{}
-    // Publish to Firebase leaderboard (reuse diffLabel already declared above)
-    publishScoreToLeaderboard(diffLabel, score, loadNickname());
+    // Update all-time high score in localStorage and publish to leaderboard
+    // — both are skipped if any Special Mechanic was active (non-competitive game)
+    const specialsActive = SPECIAL_MECHANICS.some(m=>isSpecialEnabled(m.id));
+    if(!specialsActive){
+      const key=`bestScore_ai_${aiDepth}`;
+      try{
+        const prev=parseInt(localStorage.getItem(key))||0;
+        if(score>prev) localStorage.setItem(key, score);
+      }catch{}
+      publishScoreToLeaderboard(diffLabel, score, loadNickname());
+    }
   } else {
     scoreSection.style.display='none';
   }

@@ -531,6 +531,26 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
   /* Playback bar on mobile */
   #playback-bar{font-size:.78rem;}
   #playback-controls button{padding:4px 8px;font-size:.85rem;}
+
+  /* Card tray — pull close to board on mobile, same as desktop */
+  #card-tray{
+    grid-column:1;
+    grid-row:2;
+    margin-top:4px;
+    align-self:start;
+  }
+  body.cards-active #game-container{
+    row-gap:6px;
+  }
+  body.cards-active #board-outer{
+    align-self:start;
+  }
+  body.cards-active #board{
+    height:calc(100vw - 28px - 120px);
+    width:calc(100vw - 28px - 120px);
+    max-height:calc(100vw - 28px);
+    max-width:calc(100vw - 28px);
+  }
 }
 
 /* Hide mobile elements on desktop */

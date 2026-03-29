@@ -45,7 +45,7 @@ h1:hover{text-shadow:0 0 40px var(--accent-glow),0 0 12px var(--accent-glow),0 2
 #game-container{
   display:grid;
   grid-template-columns:186px auto 186px;
-  grid-template-rows:auto auto;
+  grid-template-rows:auto auto auto;
   gap:12px;
   align-items:start;
   width:auto;
@@ -64,16 +64,21 @@ h1:hover{text-shadow:0 0 40px var(--accent-glow),0 0 12px var(--accent-glow),0 2
 }
 #board{
   display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr);
-  /* Square: height drives size, width matches it */
   height:calc(100vh - 80px);
   width:calc(100vh - 80px);
-  max-height:calc(100vw - 440px); /* don't overflow when window is narrow */
+  max-height:calc(100vw - 440px);
   max-width:calc(100vw - 440px);
   min-height:300px;
   min-width:300px;
   border:2px solid rgba(200,160,60,.3);position:relative;
   overflow:visible;
   transition:width .15s ease, height .15s ease;
+}
+body.cards-active #board{
+  height:calc(100vh - 190px);
+  width:calc(100vh - 190px);
+  max-height:calc(100vw - 440px);
+  max-width:calc(100vw - 440px);
 }
 .cell{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:visible;min-width:0;min-height:0;}
 .cell.light{background:var(--board-light);}
@@ -308,7 +313,7 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
 .modal-crown{font-size:2.6rem;margin-bottom:6px;}
 .modal-title{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:900;color:var(--gold-light);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;}
 .modal-sub{font-size:1rem;color:rgba(245,230,200,.6);margin-bottom:16px;}
-.modal-btns{display:flex;flex-direction:column;gap:10px;}
+.modal-btns{display:flex;flex-direction:column;gap:8px;}
 .modal-btn{width:100%;padding:12px 16px;border-radius:6px;border:1px solid rgba(200,160,60,.35);background:rgba(200,160,60,.08);color:var(--cream);cursor:pointer;transition:all .2s;text-align:left;display:flex;flex-direction:column;gap:2px;font-family:'Crimson Text',serif;}
 .modal-btn:hover{background:rgba(200,160,60,.2);border-color:var(--gold);transform:translateX(3px);}
 .modal-btn-top{display:flex;justify-content:space-between;align-items:center;gap:8px;}
@@ -586,6 +591,149 @@ body[data-theme='white'] #mode-badge,body[data-theme='white'] #status{color:rgba
   border:1px solid rgba(200,160,60,.25);margin:1px 0;}
 .tut-arrow{position:absolute;pointer-events:none;z-index:5;}
 
+/* ── FATE CARDS ── */
+#card-tray{
+  grid-column:2;
+  grid-row:3;
+  justify-self:center;
+  display:none;
+  flex-wrap:wrap;
+  gap:6px;
+  justify-content:center;
+  padding:4px 0;
+  width:100%;
+}
+.fate-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  width:72px;min-height:88px;border-radius:8px;padding:6px 4px;cursor:pointer;
+  border:1.5px solid rgba(200,160,60,.5);background:rgba(15,30,20,.92);
+  transition:transform .15s, box-shadow .15s, opacity .2s;
+  position:relative;user-select:none;
+}
+.fate-card:hover:not(.used):not(.targeting){
+  transform:translateY(-4px);
+  box-shadow:0 6px 18px rgba(200,160,60,.3);
+}
+.fate-card.targeting{
+  border-color:rgba(100,200,255,.8);
+  box-shadow:0 0 12px rgba(100,200,255,.4);
+  animation:card-target-pulse .8s ease-in-out infinite;
+}
+.fate-card.used{opacity:0.32;cursor:default;filter:grayscale(0.5);}
+.fate-card-icon{font-size:1.4rem;line-height:1;margin-bottom:3px;}
+.fate-card-name{font-size:.6rem;text-align:center;color:var(--gold-light);
+  font-family:'Playfair Display',serif;font-weight:700;line-height:1.2;}
+.fate-card-desc{font-size:.55rem;text-align:center;color:rgba(245,230,200,.45);
+  line-height:1.2;margin-top:2px;}
+@keyframes card-target-pulse{0%,100%{box-shadow:0 0 8px rgba(100,200,255,.4);}50%{box-shadow:0 0 18px rgba(100,200,255,.7);}}
+@keyframes card-play-flash{0%{background:rgba(200,160,60,.3);}100%{background:rgba(15,30,20,.92);}}
+
+.dface2d.wild{
+  box-shadow:0 0 0 2px #d4a830, 0 0 8px 2px rgba(212,168,48,.6),
+             2px 3px 7px rgba(0,0,0,.55),inset 0 1px 2px rgba(255,255,255,.2);
+  animation:wild-pulse 2s ease-in-out infinite;
+}
+@keyframes wild-pulse{
+  0%,100%{box-shadow:0 0 0 2px #d4a830,0 0 8px 2px rgba(212,168,48,.6),2px 3px 7px rgba(0,0,0,.55);}
+  50%{box-shadow:0 0 0 2.5px #f0c040,0 0 14px 4px rgba(240,192,64,.8),2px 3px 7px rgba(0,0,0,.55);}
+}
+.wild-star{
+  position:absolute;top:1px;right:2px;
+  font-size:.45rem;line-height:1;color:#d4a830;
+  text-shadow:0 0 3px rgba(212,168,48,.9);
+  pointer-events:none;z-index:2;
+}
+
+/* ── MAGIC SPELL ANNOUNCEMENT ── */
+#spell-overlay{
+  position:fixed;inset:0;z-index:500;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(0,0,0,0);
+  pointer-events:none;
+  transition:background .5s ease;
+}
+#spell-overlay.show{display:flex;}
+#spell-overlay.active{background:rgba(0,0,0,.78);}
+#spell-card{
+  text-align:center;opacity:0;transform:scale(.7);
+  transition:opacity .5s ease, transform .5s cubic-bezier(.17,.89,.32,1.49);
+  padding:32px 48px;
+  border:1px solid rgba(200,160,60,.4);
+  border-radius:16px;
+  background:rgba(10,20,14,.92);
+  box-shadow:0 0 60px rgba(200,160,60,.2);
+  max-width:380px;
+}
+#spell-overlay.active #spell-card{opacity:1;transform:scale(1);}
+#spell-icon{font-size:3.5rem;line-height:1;margin-bottom:10px;}
+#spell-name{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;
+  color:var(--gold-light);margin-bottom:8px;letter-spacing:.05em;}
+#spell-subtitle{font-size:.78rem;text-transform:uppercase;letter-spacing:.15em;
+  color:rgba(200,160,60,.6);margin-bottom:14px;}
+#spell-desc{font-family:'Crimson Text',serif;font-size:1rem;
+  color:rgba(245,230,200,.8);line-height:1.5;}
+@keyframes spell-particles{
+  0%{transform:translateY(0) scale(1);opacity:1;}
+  100%{transform:translateY(-40px) scale(0);opacity:0;}
+}
+
+#spell-list-popup{
+  position:fixed;inset:0;z-index:350;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(0,0,0,.75);
+}
+#spell-list-popup.show{display:flex;}
+#spell-list-inner{
+  background:var(--modal-bg1);border:1px solid rgba(200,160,60,.4);
+  border-radius:10px;padding:18px 20px;max-width:380px;width:90%;
+  max-height:80vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;
+  position:relative;
+  scrollbar-width:thin;scrollbar-color:rgba(200,160,60,.3) transparent;
+}
+
+/* ── CARD LIST POPUP ── */
+#card-list-popup{
+  position:fixed;inset:0;z-index:350;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(0,0,0,.75);
+}
+#card-list-popup.show{display:flex;}
+#card-list-inner{
+  background:var(--modal-bg1);border:1px solid rgba(200,160,60,.4);
+  border-radius:10px;padding:18px 20px;max-width:380px;width:90%;
+  max-height:80vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;
+  position:relative;
+  scrollbar-width:thin;scrollbar-color:rgba(200,160,60,.3) transparent;
+}
+.card-list-item{display:flex;align-items:flex-start;gap:8px;padding:5px 0;
+  border-bottom:1px solid rgba(200,160,60,.08);}
+.card-list-item:last-child{border-bottom:none;}
+.card-list-icon{font-size:1.1rem;flex-shrink:0;width:22px;text-align:center;}
+.card-list-text{flex:1;}
+.card-list-name{font-size:.82rem;font-weight:600;color:var(--gold-light);
+  font-family:'Playfair Display',serif;}
+.card-list-desc{font-size:.72rem;color:rgba(245,230,200,.5);line-height:1.3;}
+.sm-info-btn{
+  width:20px;height:20px;min-width:20px;min-height:20px;
+  border-radius:50%;border:1.5px solid rgba(200,160,60,.4);
+  background:transparent;color:rgba(200,160,60,.7);
+  font-size:.7rem;font-weight:700;line-height:1;
+  cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px;padding:0;
+  transition:background .15s,color .15s;
+}
+.sm-info-btn:hover{background:rgba(200,160,60,.15);color:var(--gold-light);}
+
+/* ── SPECIAL MECHANIC TOGGLE ROW ── */
+.sm-row{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(200,160,60,.15);
+  border-radius:6px;}
+.sm-icon{font-size:1.3rem;flex-shrink:0;margin-top:1px;}
+.sm-info{flex:1;}
+.sm-name{font-size:.85rem;font-weight:600;color:var(--gold-light);font-family:'Playfair Display',serif;}
+.sm-desc{font-size:.72rem;color:rgba(245,230,200,.5);line-height:1.4;margin-top:1px;}
+.sm-toggle{flex-shrink:0;margin-top:4px;}
+
 /* ── GAME START DICE DROP ANIMATION ── */
 @keyframes die-drop-in{
   0%  {transform:translateY(-60px) scale(.4) rotate(-180deg);opacity:0;}
@@ -603,6 +751,10 @@ body[data-theme='white'] #mode-badge,body[data-theme='white'] #status{color:rgba
   animation-fill-mode:both;
   animation-timing-function:cubic-bezier(.34,1.56,.64,1);
 }
+
+/* Hide real pieces during start animation so only the anim dice are visible */
+#board.start-animating .piece{opacity:0;pointer-events:none;}
+#board .piece{transition:opacity 120ms ease;}
 
 /* ── SEASONAL THEME OVERRIDES ── */
 
@@ -765,6 +917,9 @@ body.replay-mode #playback-bar{
     <div id="replay-banner" onclick="dismissReplay()">↩ Click to dismiss replay</div>
     <div id="cinematic-label"></div>
   </div>
+
+  <!-- FATE CARDS TRAY — grid-column:2, grid-row:3, sits below the board -->
+  <div id="card-tray"></div>
 
   <!-- FULL REPLAY PLAYBACK BAR -->
   <div id="playback-bar">
@@ -1016,7 +1171,7 @@ body.replay-mode #playback-bar{
         <span id="modal-theme-icon-right" style="font-size:1.6rem;line-height:1;transition:opacity .3s;"></span>
       </div>
       <h2 class="modal-title" style="cursor:pointer;" onclick="cycleTheme()">Battle Die</h2>
-      <div style="margin-bottom:12px;">
+      <div style="margin-bottom:20px;">
         <div style="font-size:.72rem;color:rgba(245,230,200,.45);text-transform:uppercase;
           letter-spacing:.08em;margin-bottom:5px;text-align:left;">Your Nickname</div>
         <input id="main-nickname-input" type="text" placeholder="Enter a nickname…" maxlength="20"
@@ -1027,7 +1182,6 @@ body.replay-mode #playback-bar{
         <div id="nickname-hint" style="font-size:.7rem;color:rgba(220,80,80,.7);margin-top:4px;
           display:none;">A nickname is required to play Human vs AI or Online Multiplayer</div>
       </div>
-      <p class="modal-sub" style="margin-top:0;">Choose your game mode</p>
       <div class="modal-btns">
         <button class="modal-btn" onclick="startGame('hvh')">
           <div class="modal-btn-top">
@@ -1051,7 +1205,7 @@ body.replay-mode #playback-bar{
           <span class="modal-btn-desc">Play vs a friend over the internet</span>
         </button>
       </div>
-      <div style="display:flex;gap:8px;margin-top:14px;">
+      <div style="display:flex;gap:8px;margin-top:20px;">
         <button class="modal-btn" style="flex:1;" onclick="showModalView('saved')">
           <span class="modal-btn-label">📜 History</span>
           <span class="modal-btn-desc">Past games</span>
@@ -1065,6 +1219,18 @@ body.replay-mode #playback-bar{
         <span class="modal-btn-label">📖 How to Play</span>
         <span class="modal-btn-desc">Animated rules & scoring guide</span>
       </button>
+      <button class="modal-btn" style="margin-top:8px;width:100%;" onclick="showModalView('specials')">
+        <span class="modal-btn-label">✨ Special Mechanics</span>
+        <span class="modal-btn-desc" id="specials-menu-desc">Optional bonus features — all off</span>
+      </button>
+    </div>
+
+    <!-- VIEW: SPECIAL MECHANICS -->
+    <div id="modal-view-specials" style="display:none;">
+      <h2 class="modal-title" style="margin-bottom:4px;">✨ Special Mechanics</h2>
+      <p class="modal-sub" style="margin-bottom:12px;">Toggle optional bonus features. Changes apply to your next game. Features are experimental, may break gameplay, and are not meant to be part of competitive matches. Use at your own risk.</p>
+      <div id="specials-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <button class="modal-btn" style="margin-top:14px;width:100%;" onclick="showModalView('main')">← Back</button>
     </div>
 
     <!-- VIEW: TUTORIAL -->
@@ -1507,12 +1673,13 @@ function toggleOutcomes(){
 
 function initBoard(){
   board=Array.from({length:9},()=>Array(9).fill(null));
+  const wildActive=isSpecialEnabled('wild_dice');
   for(let c=0;c<9;c++){
     const bt=BACK_TOPS[c];
     // Black back (row 0): face-4 points south → front=4
     board[0][c]=bt===null
       ?{color:'black',type:'king',ori:makeOri(1,4),id:'bk'}
-      :{color:'black',type:'dice',ori:makeOri(bt,4),id:`bb${c}`};
+      :{color:'black',type:'dice',ori:makeOri(bt,4),id:`bb${c}`,wild:wildActive&&c===4};
     // Black front (row 1)
     board[1][c]={color:'black',type:'dice',ori:makeOri(1,4),id:`bf${c}`};
     // White front (row 7): face-4 points north → front=3
@@ -1520,7 +1687,7 @@ function initBoard(){
     // White back (row 8): face-4 points north → front=3
     board[8][c]=bt===null
       ?{color:'white',type:'king',ori:makeOri(1,3),id:'wk'}
-      :{color:'white',type:'dice',ori:makeOri(bt,3),id:`wb${c}`};
+      :{color:'white',type:'dice',ori:makeOri(bt,3),id:`wb${c}`,wild:wildActive&&c===4};
   }
 }
 
@@ -1536,6 +1703,23 @@ const inB=(r,c)=>r>=0&&r<9&&c>=0&&c<9;
 
 function getValidMoves(row,col){
   const p=board[row][col];if(!p)return[];
+  // Wild Die: union of moves for all values 1–6
+  if(p.wild&&p.type==='dice'){
+    const seen=new Set();const moves=[];
+    for(let v=1;v<=6;v++){
+      const boosted={...p,ori:{...p.ori,top:v}};
+      getDiceMoves(row,col,boosted).forEach(m=>{
+        const key=`${m.tr},${m.tc}`;
+        if(!seen.has(key)){seen.add(key);moves.push(m);}
+      });
+    }
+    return moves;
+  }
+  // Blessing spell: white dice act as if +1 face value this turn
+  if(spellBlessingActive&&p.color==='white'&&p.type==='dice'&&turn==='white'){
+    const boosted={...p,ori:{...p.ori,top:Math.min(6,p.ori.top+1)}};
+    return getDiceMoves(row,col,boosted);
+  }
   if(p.type==='king')return getKingMoves(row,col,p);
   return getDiceMoves(row,col,p);
 }
@@ -1678,12 +1862,42 @@ function executeMove(fr,fc,tr,tc,chosenPath){
   const piece=board[fr][fc];
   const target=board[tr][tc];
 
-  // Determine if this move is being made by the human player
+  // Save snapshot for Undo card (human moves only)
   const isHumanMove = gameMode==='ai'
-    ? turn==='white'                         // human is always white vs AI
+    ? turn==='white'
     : gameMode==='online'
-      ? turn===onlineMyColor                 // human is their assigned colour online
-      : true;                                // local vs: both players are human
+      ? turn===onlineMyColor
+      : true;
+
+  if(isHumanMove && isSpecialEnabled('fate_cards')){
+    lastMoveSnapshot={
+      board: board.map(row=>row.map(p=>p?{...p,ori:{...p.ori}}:null)),
+      captured: {white:[...captured.white],black:[...captured.black]},
+    };
+  }
+
+  // Check frozen piece — if target piece is frozen and it tries to move, block
+  if(frozenPiece&&turn===aiColor&&fr===frozenPiece.r&&fc===frozenPiece.c){
+    frozenPiece=null;
+    return; // AI's frozen piece skips its move
+  }
+
+  // Shield: cancel capture if target is shielded
+  if(shieldedPiece&&target&&tr===shieldedPiece.r&&tc===shieldedPiece.c){
+    shieldedPiece=null;
+    setStatus('🛡️ Shield blocked the capture!');
+  }
+
+  // Deep Freeze: block all captures
+  if(spellFreezeCaptures&&target){
+    setStatus('🧊 Deep Freeze — captures are blocked this round!');
+    return;
+  }
+
+  // Empowerment: treat moving piece as value 6 for path validation
+  if(empowermentPiece&&fr===empowermentPiece.r&&fc===empowermentPiece.c){
+    empowermentPiece=null;
+  }
 
   // First move milestone — human only
   if(!firstMoveMade && isHumanMove) checkMilestoneMove();
@@ -1769,11 +1983,28 @@ function executeMove(fr,fc,tr,tc,chosenPath){
     }
 
     stopTimer(); // ensure clean state before switching
+
+    // Second Wind card — skip turn switch, let human move again
+    if(secondWindPending&&turn==='white'){
+      secondWindPending=false;
+      selected=null;validMoves=[];pendingMove=null;
+      render(); renderCardTray();
+      setStatus('⚡ Second Wind! Take another move.');
+      return;
+    }
+
     turn=turn==='white'?'black':'white';
     selected=null;validMoves=[];pendingMove=null;
+    // Clear frozen piece after AI's turn
+    if(turn==='white') frozenPiece=null;
+    // Clear spell effects at start of new round (when it's white's turn again)
+    if(turn==='white') clearSpellEffects();
     playSoundTurnChange();
     startTimer();
-    render();setStatus('');
+    render(); setStatus('');
+    renderCardTray();
+    // Check if a magic spell triggers this round
+    if(turn==='white') checkMagicSpell();
     if(gameMode==='ai'&&turn===aiColor&&!gameOver) triggerAIMove();
     if(gameMode==='online'&&turn!==onlineMyColor&&!gameOver) setStatus('Waiting for opponent…');
   });
@@ -1906,6 +2137,12 @@ function endGame(msg){
   const drawBtn=document.getElementById('btn-draw');
   if(drawBtn) drawBtn.style.display='none';
   hideDrawBanner();
+  // Clear card state
+  fateCardTargeting=null;
+  precisionActive=false;
+  empowermentPiece=null;
+  secondWindPending=false;
+  renderCardTray();
 
   // Check if a new difficulty should be unlocked
   checkAndUnlock(winnerColor, gameMode, aiDepth);
@@ -2141,8 +2378,10 @@ function render(){
         const s=document.createElement('span');s.className='ksym';s.textContent='♔';
         bg.appendChild(s);pel.appendChild(bg);
       } else {
-        const f=document.createElement('div');f.className=`dface2d ${p.color==='white'?'w':'b'}`;
-        f.appendChild(pipGridEl(p.ori.top));pel.appendChild(f);
+        const f=document.createElement('div');f.className=`dface2d ${p.color==='white'?'w':'b'}${p.wild?' wild':''}`;
+        f.appendChild(pipGridEl(p.ori.top));
+        if(p.wild){const star=document.createElement('span');star.className='wild-star';star.textContent='★';f.appendChild(star);}
+        pel.appendChild(f);
       }
       // Pieces on dual-route cells need pointer-events pass-through
       if(vm&&vm.routes.length>=2) pel.style.pointerEvents='none';
@@ -2271,6 +2510,15 @@ function renderHistory(){
         ls.textContent='L';
         ls.title='L-shape route used';
         line.appendChild(ls);
+      }
+
+      // Fate card badge
+      if(m.cardsPlayed&&m.cardsPlayed.length>0){
+        const cb=document.createElement('span');
+        cb.style.cssText='margin-left:2px;font-size:.8rem;flex-shrink:0;cursor:default;';
+        cb.textContent='🃏';
+        cb.title='Card played: '+m.cardsPlayed.join(', ');
+        line.appendChild(cb);
       }
 
       pair.appendChild(line);
@@ -2479,11 +2727,16 @@ function coordToRC(coord){
 function onCell(r,c){
   if(fullReplayMode) return;
   if(replayIndex!==null){ dismissReplay(); return; }
+  // Block all input while start animation is running
+  const boardEl=document.getElementById('board');
+  if(boardEl&&boardEl.classList.contains('start-animating')) return;
   // Online: block input when it's not your turn
   if(gameMode==='online'&&turn!==onlineMyColor) return;
   if(gameOver||aiThinking) return;
   // Block human from moving AI's pieces
   if(gameMode==='ai'&&turn===aiColor) return;
+  // Fate card targeting intercepts clicks first
+  if(fateCardTargeting&&handleCardTargetClick(r,c)) return;
   const p=board[r][c];
   if(selected){
     const vm=validMoves.find(m=>m.row===r&&m.col===c);
@@ -3400,6 +3653,604 @@ function kingCaptureMsg(winnerColor){
 }
 
 // ============================================================
+// MAGIC SPELLS SYSTEM
+// ============================================================
+const MAGIC_SPELLS=[
+  {
+    id:'whirlwind',
+    icon:'🌪️',
+    name:'Whirlwind',
+    desc:'All dice are swept one square in a random direction — if the target square is empty.',
+  },
+  {
+    id:'eclipse',
+    icon:'🌑',
+    name:'Eclipse',
+    desc:'Darkness falls! Outcomes are hidden for both players this entire round.',
+  },
+  {
+    id:'lightning',
+    icon:'⚡',
+    name:'Lightning Strike',
+    desc:'A bolt from the heavens! One random enemy die loses 1 face value.',
+  },
+  {
+    id:'arcane_flux',
+    icon:'🔮',
+    name:'Arcane Flux',
+    desc:'Magical energy surges through the board — every die\'s face value shifts up by 1.',
+  },
+  {
+    id:'deep_freeze',
+    icon:'🧊',
+    name:'Deep Freeze',
+    desc:'The board is frozen solid! No captures are possible this round.',
+  },
+  {
+    id:'blessing',
+    icon:'🌟',
+    name:'Blessing',
+    desc:'Fortune smiles upon you! All your dice gain +1 face value for your next move.',
+  },
+];
+
+let activeSpell=null;        // current spell object or null
+let spellFreezeCaptures=false;  // deep freeze flag
+let spellBlessingActive=false;  // blessing flag
+let spellEclipseActive=false;   // eclipse flag
+
+function resetSpellState(){
+  activeSpell=null;
+  spellFreezeCaptures=false;
+  spellBlessingActive=false;
+  spellEclipseActive=false;
+}
+
+function checkMagicSpell(){
+  if(!isSpecialEnabled('magic_spells')) return;
+  if(gameMode!=='ai') return; // spells only vs AI for now
+  const round=Math.ceil(moveHistory.length/2)+1; // upcoming round number
+  if(round>0&&round%7===0){
+    const spell=MAGIC_SPELLS[Math.floor(Math.random()*MAGIC_SPELLS.length)];
+    announceSpell(spell,()=>applySpell(spell));
+  }
+}
+
+function announceSpell(spell, onComplete){
+  const overlay=document.getElementById('spell-overlay');
+  document.getElementById('spell-icon').textContent=spell.icon;
+  document.getElementById('spell-name').textContent=spell.name;
+  document.getElementById('spell-desc').textContent=spell.desc;
+  overlay.classList.add('show');
+  // Trigger animation after brief delay
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    overlay.classList.add('active');
+  }));
+  // Hold 3s then fade out and apply spell
+  setTimeout(()=>{
+    overlay.classList.remove('active');
+    setTimeout(()=>{
+      overlay.classList.remove('show');
+      if(onComplete) onComplete();
+    },500);
+  },3000);
+}
+
+function applySpell(spell){
+  activeSpell=spell;
+  setStatus(`${spell.icon} ${spell.name} is active this round!`);
+
+  switch(spell.id){
+    case 'whirlwind':    applyWhirlwind(); break;
+    case 'eclipse':      applyEclipse(); break;
+    case 'lightning':    applyLightning(); break;
+    case 'arcane_flux':  applyArcaneFlux(); break;
+    case 'deep_freeze':  spellFreezeCaptures=true; break;
+    case 'blessing':     spellBlessingActive=true; break;
+  }
+  render();
+}
+
+function clearSpellEffects(){
+  if(spellEclipseActive){
+    // Restore outcomes visibility to what it was before eclipse
+    spellEclipseActive=false;
+    const btn=document.getElementById('btn-outcomes');
+    if(btn){ btn.textContent=showOutcomes?'⚄ Hide Outcomes':'⚄ Show Outcomes'; }
+  }
+  spellFreezeCaptures=false;
+  spellBlessingActive=false;
+  activeSpell=null;
+}
+
+function applyWhirlwind(){
+  const dirs=[{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}];
+  const dir=dirs[Math.floor(Math.random()*dirs.length)];
+  // Collect all pieces and try to move each one square in the chosen direction
+  const moves=[];
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    const p=board[r][c];
+    if(!p||p.type==='king') continue;
+    const nr=r+dir.dr, nc=c+dir.dc;
+    if(nr<0||nr>=9||nc<0||nc>=9) continue;
+    if(!board[nr][nc]) moves.push({from:{r,c},to:{r:nr,c:nc},piece:p});
+  }
+  // Apply in safe order (direction-aware to avoid collisions)
+  moves.sort((a,b)=> dir.dr>0?(b.from.r-a.from.r):dir.dr<0?(a.from.r-b.from.r):
+    dir.dc>0?(b.from.c-a.from.c):(a.from.c-b.from.c));
+  moves.forEach(m=>{
+    if(!board[m.to.r][m.to.c]){
+      board[m.to.r][m.to.c]=m.piece;
+      board[m.from.r][m.from.c]=null;
+    }
+  });
+}
+
+function applyEclipse(){
+  spellEclipseActive=true;
+  // Temporarily hide outcomes display
+  showOutcomes=false;
+  const btn=document.getElementById('btn-outcomes');
+  if(btn) btn.textContent='🌑 Eclipse — Outcomes Hidden';
+}
+
+function applyLightning(){
+  // Find a random non-king enemy (AI = black) die
+  const targets=[];
+  const enemyColor=gameMode==='ai'?'black':'black';
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    const p=board[r][c];
+    if(p&&p.color===enemyColor&&p.type==='dice') targets.push({r,c,p});
+  }
+  if(!targets.length) return;
+  const t=targets[Math.floor(Math.random()*targets.length)];
+  t.p.ori.top=Math.max(1,t.p.ori.top-1);
+}
+
+function applyArcaneFlux(){
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    const p=board[r][c];
+    if(p&&p.type==='dice'){
+      p.ori.top=p.ori.top%6+1; // 6 wraps to 1
+    }
+  }
+}
+
+// ============================================================
+// SPECIAL MECHANICS SYSTEM
+// ============================================================
+const SPECIAL_MECHANICS=[
+  {
+    id:'fate_cards',
+    icon:'🃏',
+    name:'Fate Cards',
+    desc:'Draw a hand of special ability cards at game start. Easy=5, Medium=3, Hard=1, Expert=0.',
+    default:false,
+  },
+  {
+    id:'magic_spells',
+    icon:'✨',
+    name:'Magic Spells',
+    desc:'Every 7 rounds a random spell activates for that round, announced dramatically.',
+    default:false,
+  },
+  {
+    id:'wild_dice',
+    icon:'🎲',
+    name:'Wild Dice',
+    desc:'Each player gets one Wild Die (centre back row). It can move any value from 1–6 on its turn.',
+    default:false,
+  },
+];
+
+function loadSpecialMechanics(){
+  try{ return JSON.parse(localStorage.getItem('battleDieSpecials'))||{}; }
+  catch{ return {}; }
+}
+function saveSpecialMechanics(data){
+  try{ localStorage.setItem('battleDieSpecials',JSON.stringify(data)); }catch{}
+}
+function isSpecialEnabled(id){
+  const data=loadSpecialMechanics();
+  const def=SPECIAL_MECHANICS.find(m=>m.id===id);
+  return data.hasOwnProperty(id)?data[id]:(def?def.default:false);
+}
+
+function renderSpecialMechanicsView(){
+  const list=document.getElementById('specials-list');
+  if(!list) return;
+  const data=loadSpecialMechanics();
+  list.innerHTML='';
+  SPECIAL_MECHANICS.forEach(sm=>{
+    const enabled=data.hasOwnProperty(sm.id)?data[sm.id]:sm.default;
+    const row=document.createElement('div');
+    row.className='sm-row';
+    const infoBtn=sm.id==='fate_cards'
+      ?`<button class="sm-info-btn" onclick="showCardListPopup()" title="View all 12 cards">?</button>`
+      :sm.id==='magic_spells'
+      ?`<button class="sm-info-btn" onclick="showSpellListPopup()" title="View all 6 spells">?</button>`
+      :'';
+    row.innerHTML=`
+      <div class="sm-icon">${sm.icon}</div>
+      <div class="sm-info">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="sm-name">${sm.name}</div>
+          ${infoBtn}
+        </div>
+        <div class="sm-desc">${sm.desc}</div>
+      </div>
+      <label class="sm-toggle" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" ${enabled?'checked':''} style="width:16px;height:16px;cursor:pointer;accent-color:var(--gold);"
+          onchange="toggleSpecialMechanic('${sm.id}',this.checked)">
+        <span style="font-size:.78rem;color:${enabled?'var(--gold-light)':'rgba(245,230,200,.35)'};"
+          id="sm-label-${sm.id}">${enabled?'On':'Off'}</span>
+      </label>`;
+    list.appendChild(row);
+  });
+  updateSpecialsMenuDesc();
+}
+
+function showSpellListPopup(){
+  const entries=document.getElementById('spell-list-entries');
+  if(entries){
+    entries.innerHTML=MAGIC_SPELLS.map(s=>`
+      <div class="card-list-item">
+        <div class="card-list-icon">${s.icon}</div>
+        <div class="card-list-text">
+          <div class="card-list-name">${s.name}</div>
+          <div class="card-list-desc">${s.desc}</div>
+        </div>
+      </div>`).join('');
+  }
+  document.getElementById('spell-list-popup').classList.add('show');
+}
+
+function hideSpellListPopup(){
+  document.getElementById('spell-list-popup').classList.remove('show');
+}
+
+function showCardListPopup(){
+  const entries=document.getElementById('card-list-entries');
+  if(entries){
+    entries.innerHTML=FATE_CARD_DEFS.map(c=>`
+      <div class="card-list-item">
+        <div class="card-list-icon">${c.icon}</div>
+        <div class="card-list-text">
+          <div class="card-list-name">${c.name}</div>
+          <div class="card-list-desc">${c.desc}</div>
+        </div>
+      </div>`).join('');
+  }
+  document.getElementById('card-list-popup').classList.add('show');
+}
+
+function hideCardListPopup(){
+  document.getElementById('card-list-popup').classList.remove('show');
+}
+
+function toggleSpecialMechanic(id, enabled){
+  const data=loadSpecialMechanics();
+  data[id]=enabled;
+  saveSpecialMechanics(data);
+  const label=document.getElementById(`sm-label-${id}`);
+  if(label){
+    label.textContent=enabled?'On':'Off';
+    label.style.color=enabled?'var(--gold-light)':'rgba(245,230,200,.35)';
+  }
+  updateSpecialsMenuDesc();
+}
+
+function updateSpecialsMenuDesc(){
+  const el=document.getElementById('specials-menu-desc');
+  if(!el) return;
+  const active=SPECIAL_MECHANICS.filter(m=>isSpecialEnabled(m.id));
+  el.textContent=active.length===0
+    ?'Optional bonus features — all off'
+    :`Active: ${active.map(m=>m.name).join(', ')}`;
+}
+
+// ============================================================
+// FATE CARDS
+// ============================================================
+const FATE_CARD_DEFS=[
+  {id:'reroll',       icon:'🔄', name:'Reroll',      desc:'Randomise a die\'s face value'},
+  {id:'freeze',       icon:'❄️',  name:'Freeze',      desc:'Enemy die can\'t move next turn'},
+  {id:'teleport',     icon:'🌀', name:'Teleport',    desc:'Move a die to any empty square'},
+  {id:'mirror',       icon:'🔀', name:'Mirror',      desc:'Swap two of your own pieces'},
+  {id:'second_wind',  icon:'⚡', name:'Second Wind', desc:'Take a second move this turn'},
+  {id:'shield',       icon:'🛡️',  name:'Shield',      desc:'One die can\'t be captured next turn'},
+  {id:'shatter',      icon:'💥', name:'Shatter',     desc:'Reduce enemy die\'s value by 2'},
+  {id:'precision',    icon:'🎯', name:'Precision',   desc:'Move in a straight line this turn'},
+  {id:'undo',         icon:'⏪', name:'Undo',        desc:'Take back your last move'},
+  {id:'empowerment',  icon:'🌟', name:'Empowerment', desc:'One die moves as if value is 6'},
+  {id:'flux',         icon:'🔃', name:'Flux',        desc:'Randomise ALL dice face values'},
+  {id:'foresight',    icon:'👁️',  name:'Foresight',   desc:'Your hand refills by 1 card'},
+];
+
+let fateCardHand=[];       // current hand [{...def, used:false}, ...]
+let fateCardTargeting=null; // {cardId, step, data} — multi-step targeting state
+let shieldedPiece=null;     // {r,c} of shielded piece
+let frozenPiece=null;       // {r,c} of frozen piece
+let precisionActive=false;  // straight-line move active
+let empowermentPiece=null;  // {r,c} of empowered piece
+let lastMoveSnapshot=null;  // for undo card
+
+const CARDS_PER_DIFF={1:5, 2:3, 3:1, 4:0}; // Easy=5, Med=3, Hard=1, Expert=0
+
+function dealFateCards(){
+  fateCardHand=[];
+  if(!isSpecialEnabled('fate_cards')) return;
+  if(gameMode!=='ai') return; // cards only vs AI
+  const count=CARDS_PER_DIFF[aiDepth]||0;
+  if(count===0) return;
+  // Shuffle deck and deal
+  const deck=[...FATE_CARD_DEFS].sort(()=>Math.random()-.5);
+  for(let i=0;i<count&&i<deck.length;i++){
+    fateCardHand.push({...deck[i], used:false});
+  }
+  renderCardTray();
+}
+
+function renderCardTray(){
+  const tray=document.getElementById('card-tray');
+  if(!tray) return;
+  const isPlayerTurn=gameMode==='ai'&&turn==='white'&&!gameOver;
+  if(fateCardHand.length===0||gameOver){
+    tray.style.display='none';
+    document.body.classList.remove('cards-active');
+    return;
+  }
+  tray.style.display='flex';
+  document.body.classList.add('cards-active');
+  tray.innerHTML='';
+  fateCardHand.forEach((card,i)=>{
+    const el=document.createElement('div');
+    el.className='fate-card'+(card.used?' used':'')+(fateCardTargeting?.cardId===card.id?' targeting':'');
+    el.title=card.desc;
+    el.innerHTML=`<div class="fate-card-icon">${card.icon}</div>
+      <div class="fate-card-name">${card.name}</div>
+      <div class="fate-card-desc">${card.desc}</div>`;
+    if(!card.used&&isPlayerTurn){
+      el.onclick=()=>activateFateCard(i);
+    }
+    tray.appendChild(el);
+  });
+}
+
+function activateFateCard(idx){
+  const card=fateCardHand[idx];
+  if(!card||card.used) return;
+  if(fateCardTargeting){ cancelCardTargeting(); return; }
+
+  switch(card.id){
+    case 'reroll':      cardReroll(idx); break;
+    case 'freeze':      cardStartTargeting(idx,'freeze_pick'); break;
+    case 'teleport':    cardStartTargeting(idx,'teleport_pick'); break;
+    case 'mirror':      cardStartTargeting(idx,'mirror_pick1'); break;
+    case 'second_wind': cardSecondWind(idx); break;
+    case 'shield':      cardStartTargeting(idx,'shield_pick'); break;
+    case 'shatter':     cardStartTargeting(idx,'shatter_pick'); break;
+    case 'precision':   cardPrecision(idx); break;
+    case 'undo':        cardUndo(idx); break;
+    case 'empowerment': cardStartTargeting(idx,'empower_pick'); break;
+    case 'flux':        cardFlux(idx); break;
+    case 'foresight':   cardForesight(idx); break;
+  }
+}
+
+function markCardUsed(idx, extraHistoryNote){
+  fateCardHand[idx].used=true;
+  // Tag current move or create standalone history note
+  if(moveHistory.length>0){
+    const last=moveHistory[moveHistory.length-1];
+    if(!last.cardsPlayed) last.cardsPlayed=[];
+    last.cardsPlayed.push(fateCardHand[idx].name);
+  }
+  renderCardTray();
+  renderHistory();
+}
+
+function cardStartTargeting(idx, step){
+  fateCardTargeting={cardId:fateCardHand[idx].id, idx, step, data:{}};
+  setStatus(`${fateCardHand[idx].icon} ${fateCardHand[idx].name}: ${getTargetingPrompt(step)}`);
+  renderCardTray();
+  render(); // re-render to show targeting overlays
+}
+
+function cancelCardTargeting(){
+  fateCardTargeting=null;
+  setStatus('');
+  renderCardTray();
+  render();
+}
+
+function getTargetingPrompt(step){
+  const prompts={
+    freeze_pick:'Click an enemy die to freeze it',
+    teleport_pick:'Click one of your dice to teleport',
+    teleport_dest:'Click an empty square as the destination',
+    mirror_pick1:'Click first of your two pieces to swap',
+    mirror_pick2:'Click second of your pieces to swap',
+    shield_pick:'Click one of your dice to shield',
+    shatter_pick:'Click an enemy die to shatter',
+    empower_pick:'Click one of your dice to empower',
+  };
+  return prompts[step]||'';
+}
+
+// Called from onCell when targeting is active
+function handleCardTargetClick(r,c){
+  if(!fateCardTargeting) return false;
+  const {cardId,idx,step,data}=fateCardTargeting;
+  const piece=board[r][c];
+
+  if(cardId==='freeze'&&step==='freeze_pick'){
+    if(!piece||piece.color==='white'||piece.type==='king') return true;
+    frozenPiece={r,c};
+    setStatus(`❄️ Frozen! That die can't move next turn.`);
+    markCardUsed(idx);
+    fateCardTargeting=null;
+    render();
+    return true;
+  }
+  if(cardId==='teleport'&&step==='teleport_pick'){
+    if(!piece||piece.color!=='white') return true;
+    data.fromR=r; data.fromC=c;
+    fateCardTargeting.step='teleport_dest';
+    setStatus('🌀 Teleport: Click an empty square as the destination');
+    render();
+    return true;
+  }
+  if(cardId==='teleport'&&step==='teleport_dest'){
+    if(piece) return true; // must be empty
+    board[r][c]=board[data.fromR][data.fromC];
+    board[data.fromR][data.fromC]=null;
+    setStatus('🌀 Teleported!');
+    markCardUsed(idx);
+    fateCardTargeting=null;
+    render();
+    return true;
+  }
+  if(cardId==='mirror'&&step==='mirror_pick1'){
+    if(!piece||piece.color!=='white') return true;
+    data.r1=r; data.c1=c;
+    fateCardTargeting.step='mirror_pick2';
+    setStatus('🔀 Mirror: Click second of your pieces to swap');
+    render();
+    return true;
+  }
+  if(cardId==='mirror'&&step==='mirror_pick2'){
+    if(!piece||piece.color!=='white'||(r===data.r1&&c===data.c1)) return true;
+    const tmp=board[r][c];
+    board[r][c]=board[data.r1][data.c1];
+    board[data.r1][data.c1]=tmp;
+    setStatus('🔀 Swapped!');
+    markCardUsed(idx);
+    fateCardTargeting=null;
+    render();
+    return true;
+  }
+  if(cardId==='shield'&&step==='shield_pick'){
+    if(!piece||piece.color!=='white') return true;
+    shieldedPiece={r,c};
+    setStatus('🛡️ Shielded! That die can\'t be captured next turn.');
+    markCardUsed(idx);
+    fateCardTargeting=null;
+    render();
+    return true;
+  }
+  if(cardId==='shatter'&&step==='shatter_pick'){
+    if(!piece||piece.color==='white'||piece.type==='king') return true;
+    piece.ori.top=Math.max(1,piece.ori.top-2);
+    setStatus(`💥 Shattered! Enemy die reduced to ${piece.ori.top}.`);
+    markCardUsed(idx);
+    fateCardTargeting=null;
+    render();
+    return true;
+  }
+  if(cardId==='empowerment'&&step==='empower_pick'){
+    if(!piece||piece.color!=='white'||piece.type==='king') return true;
+    empowermentPiece={r,c};
+    setStatus('🌟 Empowered! That die moves as if showing 6 this turn.');
+    markCardUsed(idx);
+    fateCardTargeting=null;
+    render();
+    return true;
+  }
+  return false;
+}
+
+function cardReroll(idx){
+  // Randomly reroll one of your dice — pick the first non-king white piece
+  const candidates=[];
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    const p=board[r][c];
+    if(p&&p.color==='white'&&p.type==='dice') candidates.push({r,c,p});
+  }
+  if(!candidates.length) return;
+  // Pick a random one
+  const target=candidates[Math.floor(Math.random()*candidates.length)];
+  const oldVal=target.p.ori.top;
+  target.p.ori.top=Math.ceil(Math.random()*6);
+  setStatus(`🔄 Rerolled! Die changed from ${oldVal} to ${target.p.ori.top}.`);
+  markCardUsed(idx);
+  render();
+}
+
+function cardSecondWind(idx){
+  markCardUsed(idx);
+  setStatus('⚡ Second Wind! Take another move.');
+  // Don't switch turn after next executeMove — handled via flag
+  secondWindPending=true;
+  renderCardTray();
+}
+
+function cardPrecision(idx){
+  precisionActive=true;
+  markCardUsed(idx);
+  setStatus('🎯 Precision active! Move in a straight line this turn.');
+  render(); // recompute valid moves
+}
+
+function cardUndo(idx){
+  if(!lastMoveSnapshot){
+    setStatus('⏪ Nothing to undo yet.');
+    return;
+  }
+  // Restore board from snapshot
+  board=lastMoveSnapshot.board;
+  captured=lastMoveSnapshot.captured;
+  turn='white';
+  moveHistory.pop();
+  lastMoveSnapshot=null;
+  markCardUsed(idx);
+  setStatus('⏪ Move undone! Take your turn again.');
+  render(); renderHistory();
+}
+
+function cardFlux(idx){
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    const p=board[r][c];
+    if(p&&p.type==='dice') p.ori.top=Math.ceil(Math.random()*6);
+  }
+  setStatus('🔃 Flux! All dice have been randomised.');
+  markCardUsed(idx);
+  render();
+}
+
+function cardForesight(idx){
+  // Refill hand by 1 card from unused defs
+  const usedIds=fateCardHand.map(c=>c.id);
+  const available=FATE_CARD_DEFS.filter(d=>!usedIds.includes(d.id));
+  if(available.length>0){
+    const pick=available[Math.floor(Math.random()*available.length)];
+    fateCardHand.push({...pick, used:false});
+    setStatus(`👁️ Foresight! Drew: ${pick.icon} ${pick.name}`);
+  } else {
+    setStatus('👁️ Foresight! No new cards available.');
+  }
+  markCardUsed(idx);
+  renderCardTray();
+}
+
+let secondWindPending=false;
+
+// Reset all card state on game reset
+function resetCardState(){
+  fateCardHand=[];
+  fateCardTargeting=null;
+  shieldedPiece=null;
+  frozenPiece=null;
+  precisionActive=false;
+  empowermentPiece=null;
+  lastMoveSnapshot=null;
+  secondWindPending=false;
+  resetSpellState();
+  const tray=document.getElementById('card-tray');
+  if(tray) tray.style.display='none';
+}
+
+// ============================================================
 // ONLINE DRAW OFFER SYSTEM
 // ============================================================
 function offerDraw(){
@@ -3673,10 +4524,23 @@ function playStartAnimation(){
   });
 
   // Clean up overlays after all animations complete (max delay + duration + buffer)
-  const maxDelay=60 + 8*35 + 520 + 100;
+  const lastDieFinish = 60 + 8*35 + 520;  // 860ms — when the last die lands
+  const revealAt = Math.round(lastDieFinish * 0.9);  // ~774ms — fade in real dice early
+
+  // Fade real pieces in at 90% of animation so they're visible exactly when anim ends
+  setTimeout(()=>{
+    if(boardEl){
+      boardEl.style.transition='opacity 120ms ease';
+      boardEl.classList.remove('start-animating');
+      // Clear transition after it completes
+      setTimeout(()=>{ boardEl.style.transition=''; }, 130);
+    }
+  }, revealAt);
+
+  // Remove overlay dice after all animations fully finish
   setTimeout(()=>{
     fragments.forEach(({el})=>{ if(el.parentNode) el.parentNode.removeChild(el); });
-  }, maxDelay);
+  }, lastDieFinish + 100);
 }
 
 // ============================================================
@@ -3695,13 +4559,30 @@ function resetGame(randomiseTurn=true){
   btn.textContent='⚄ Hide Outcomes';btn.classList.add('active-btn');
   document.getElementById('overlay').classList.remove('show');
   setStatus('');
-  setStatus(`${turn.charAt(0).toUpperCase()+turn.slice(1)} goes first!`);initBoard();render();
-  // Play dice drop animation — brief RAF delay so DOM is painted first
-  requestAnimationFrame(()=>requestAnimationFrame(()=>playStartAnimation()));
+  setStatus(`${turn.charAt(0).toUpperCase()+turn.slice(1)} goes first!`);
+  initBoard();
+
+  // Hide real pieces — animation dice will fly in on top
+  const boardEl=document.getElementById('board');
+  if(boardEl) boardEl.classList.add('start-animating');
+
+  render();
+  resetCardState();
+
+  // Play animation immediately, then after 2s reveal pieces + unlock interaction
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    playStartAnimation();
+    dealFateCards();
+  }));
+
   updateInspector({top:1,front:2,right:3});
-  startTimer();
-  // If AI goes first, trigger its move after a short delay so the board renders first
-  if(gameMode==='ai'&&turn===aiColor) setTimeout(triggerAIMove, 500);
+
+  // After 2 seconds: start timer, allow AI (pieces already revealed by playStartAnimation)
+  setTimeout(()=>{
+    if(boardEl) boardEl.classList.remove('start-animating'); // safety net in case anim skipped
+    startTimer();
+    if(gameMode==='ai'&&turn===aiColor) triggerAIMove();
+  }, 2000);
 }
 
 // ============================================================
@@ -4866,7 +5747,7 @@ const DIFF_LEVELS=[
   {depth:1, label:'Easy',   desc:'Greedy — looks 1 move ahead'},
   {depth:2, label:'Medium', desc:'Minimax — looks 2 moves ahead'},
   {depth:3, label:'Hard',   desc:'Alpha-beta pruning — looks 3 moves ahead'},
-  {depth:4, label:'Expert', desc:'Alpha-beta + move ordering — looks 4 moves ahead'},
+  {depth:4, label:'Violence', desc:'Alpha-beta + move ordering — looks 4 moves ahead'},
 ];
 // localStorage key stores highest depth beaten by human as white
 const UNLOCK_KEY='diceChessUnlocked';
@@ -5007,6 +5888,7 @@ async function autoSaveGame(winnerColor){
     oppName: gameMode==='online'?onlineOppName:'',
     timeControlUsed: timeControlActive,
     timeControlLimitMs: timeControlActive?timeControlLimitMs:null,
+    specialMechanics: SPECIAL_MECHANICS.filter(m=>isSpecialEnabled(m.id)).map(m=>({id:m.id,icon:m.icon,name:m.name})),
     score: calculateScore(winnerColor, gameMode, aiDepth,
              Math.ceil(moveHistory.length/2),
              playerTime.white/1000, outcomesEverOn),
@@ -5023,13 +5905,14 @@ async function autoSaveGame(winnerColor){
 function showModalView(view){
   // Stop any running tutorial animations when leaving
   if(view!=='tutorial'&&_tutAnimTimer){ clearInterval(_tutAnimTimer); _tutAnimTimer=null; }
-  ['main','saved','stats','online','leaderboard','ai','tutorial'].forEach(v=>{
+  ['main','saved','stats','online','leaderboard','ai','tutorial','specials'].forEach(v=>{
     const el=document.getElementById(`modal-view-${v}`);
     if(el) el.style.display=(v===view)?'block':'none';
   });
   if(view==='saved') renderSavedGames();
   if(view==='stats'){ switchStatsTab('stats'); renderStatsView(); }
   if(view==='tutorial'){ tutIndex=0; _tutDir=1; renderTutSlide(); }
+  if(view==='specials'){ renderSpecialMechanicsView(); }
   if(view==='online') resetOnlineLobbyUI();
   if(view==='leaderboard') renderLeaderboard('Easy');
   if(view==='ai') renderDiffButtons();
@@ -5092,13 +5975,16 @@ async function renderSavedGames(){
     const timeControlIcon=g.timeControlUsed&&g.timeControlLimitMs
       ?`<span title="Time control: ${formatTime(g.timeControlLimitMs)} per player" style="font-size:1rem;cursor:default;">⏱</span>`
       :'';
+    const specialsIcons=(g.specialMechanics&&g.specialMechanics.length>0)
+      ?g.specialMechanics.map(m=>`<span title="${m.name} was active" style="font-size:1rem;cursor:default;">${m.icon}</span>`).join('')
+      :'';
     const wTime=g.whiteTime!=null?formatTime(g.whiteTime):'—';
     const bTime=g.blackTime!=null?formatTime(g.blackTime):'—';
     const entry=document.createElement('div');
     entry.className='saved-game-entry';
     entry.innerHTML=`
       <div class="saved-game-info">
-        <div class="saved-game-title" style="display:flex;align-items:center;gap:6px;">${winnerLabel} ${outcomesIcon}${onlineIcon}${timeControlIcon}</div>
+        <div class="saved-game-title" style="display:flex;align-items:center;gap:6px;">${winnerLabel} ${outcomesIcon}${onlineIcon}${timeControlIcon}${specialsIcons}</div>
         <div class="saved-game-meta" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${dateStr} · ${modeLabel}</div>
         <div class="saved-game-meta">${g.rounds}&nbsp;rounds · ${g.totalMoves}&nbsp;moves · <span title="White player timer" style="color:#e8dfc8;cursor:default;">⚀</span>&nbsp;${wTime} · <span title="Black player timer" style="color:#e05050;cursor:default;">⚅</span>&nbsp;${bTime}</div>
       </div>
@@ -6009,6 +6895,7 @@ checkShareHash().then(isShare=>{
 });
 matchHistoryHeight();
 updateSoundBtn();
+updateSpecialsMenuDesc();
 
 // Backfill scores for legacy saved games that predate the scoring system
 async function migrateScores(){
@@ -6157,5 +7044,40 @@ if('serviceWorker' in navigator){
   });
 }
 </script>
+<!-- MAGIC SPELL ANNOUNCEMENT OVERLAY -->
+<div id="spell-overlay">
+  <div id="spell-card">
+    <div id="spell-icon">✨</div>
+    <div id="spell-subtitle">✦ Magic Spell ✦</div>
+    <div id="spell-name">Whirlwind</div>
+    <div id="spell-desc">Dice are swept across the board!</div>
+  </div>
+</div>
+
+<!-- SPELL LIST POPUP — fixed overlay, direct child of body -->
+<div id="spell-list-popup" onclick="hideSpellListPopup()">
+  <div id="spell-list-inner" onclick="event.stopPropagation()">
+    <div style="font-family:'Playfair Display',serif;font-size:.88rem;font-weight:700;
+      color:var(--gold-light);margin-bottom:12px;text-align:center;">
+      ✨ Magic Spells — Full List</div>
+    <div id="spell-list-entries"></div>
+    <div style="margin-top:10px;font-size:.72rem;color:rgba(245,230,200,.35);text-align:center;">
+      Activates every 7 rounds · vs AI only
+    </div>
+  </div>
+</div>
+
+<!-- CARD LIST POPUP — fixed overlay, direct child of body -->
+<div id="card-list-popup" onclick="hideCardListPopup()">
+  <div id="card-list-inner" onclick="event.stopPropagation()">
+    <div style="font-family:'Playfair Display',serif;font-size:.88rem;font-weight:700;
+      color:var(--gold-light);margin-bottom:12px;text-align:center;">
+      🃏 Fate Cards — Full List</div>
+    <div id="card-list-entries"></div>
+    <div style="margin-top:10px;font-size:.72rem;color:rgba(245,230,200,.35);text-align:center;">
+      Easy: 5 cards · Medium: 3 · Hard: 1 · Expert: 0
+    </div>
+  </div>
+</div>
 </body>
 </html>

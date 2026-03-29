@@ -30,7 +30,8 @@ body{
   min-height:100vh;display:flex;flex-direction:column;
   align-items:center;justify-content:center;
   font-family:'Crimson Text',serif;color:var(--cream);
-  padding:10px;gap:10px;
+  padding:8px 10px;gap:8px;
+  overflow:hidden;
   transition:background-color .4s ease;
 }
 h1{
@@ -64,8 +65,8 @@ h1:hover{text-shadow:0 0 40px var(--accent-glow),0 0 12px var(--accent-glow),0 2
 }
 #board{
   display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr);
-  height:calc(100vh - 80px);
-  width:calc(100vh - 80px);
+  height:calc(100vh - 90px);
+  width:calc(100vh - 90px);
   max-height:calc(100vw - 440px);
   max-width:calc(100vw - 440px);
   min-height:300px;
@@ -75,10 +76,16 @@ h1:hover{text-shadow:0 0 40px var(--accent-glow),0 0 12px var(--accent-glow),0 2
   transition:width .15s ease, height .15s ease;
 }
 body.cards-active #board{
-  height:calc(100vh - 190px);
-  width:calc(100vh - 190px);
+  height:calc(100vh - 210px);
+  width:calc(100vh - 210px);
   max-height:calc(100vw - 440px);
   max-width:calc(100vw - 440px);
+}
+body.cards-active #board-outer{
+  align-self:start;
+}
+body.cards-active #game-container{
+  row-gap:6px;
 }
 .cell{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:visible;min-width:0;min-height:0;}
 .cell.light{background:var(--board-light);}
@@ -596,12 +603,14 @@ body[data-theme='white'] #mode-badge,body[data-theme='white'] #status{color:rgba
   grid-column:2;
   grid-row:3;
   justify-self:center;
+  align-self:start;
   display:none;
   flex-wrap:wrap;
   gap:6px;
   justify-content:center;
   padding:4px 0;
   width:100%;
+  margin-top:4px;
 }
 .fate-card{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -1073,7 +1082,7 @@ body.replay-mode #playback-bar{
   <div class="modal-box" style="max-width:340px;">
     <h2 class="modal-title" style="font-size:1.1rem;margin-bottom:12px;">🏆 How Scores Work</h2>
     <div style="font-size:.82rem;color:rgba(245,230,200,.75);line-height:1.7;">
-      <p style="margin:0 0 10px;">Scores are only awarded for <strong style="color:var(--gold-light);">human wins vs AI</strong>. Losses score zero.</p>
+      <p style="margin:0 0 10px;">Scores are only awarded for <strong style="color:var(--gold-light);">human wins vs AI</strong>. Losses score zero.<br>Games with <strong style="color:var(--gold-light);">Special Mechanics</strong> applied are excluded.</p>
       <div style="background:rgba(200,160,60,.07);border:1px solid rgba(200,160,60,.15);border-radius:5px;padding:10px 12px;margin-bottom:10px;font-size:.79rem;">
         <div style="color:var(--gold-light);font-family:'Playfair Display',serif;margin-bottom:6px;">Formula</div>
         <div style="color:rgba(245,230,200,.6);margin-bottom:4px;">Difficulty × (Efficiency + Speed) × Outcomes</div>
@@ -1715,6 +1724,11 @@ function getValidMoves(row,col){
     }
     return moves;
   }
+  // Empowerment card: selected die moves as if showing 6
+  if(empowermentPiece&&row===empowermentPiece.r&&col===empowermentPiece.c&&p.type==='dice'){
+    const boosted={...p,ori:{...p.ori,top:6}};
+    return getDiceMoves(row,col,boosted);
+  }
   // Blessing spell: white dice act as if +1 face value this turn
   if(spellBlessingActive&&p.color==='white'&&p.type==='dice'&&turn==='white'){
     const boosted={...p,ori:{...p.ori,top:Math.min(6,p.ori.top+1)}};
@@ -1796,7 +1810,9 @@ function getDiceMoves(row,col,p){
       if(!inB(r,c))break;
       const t=board[r][c];
       if(t){
-        if(s===dist&&t.color!==p.color) addRoute(r,c,true,buildStraightPath(row,col,r,c));
+        // Shielded piece cannot be captured
+        const isShielded=shieldedPiece&&r===shieldedPiece.r&&c===shieldedPiece.c;
+        if(s===dist&&t.color!==p.color&&!isShielded) addRoute(r,c,true,buildStraightPath(row,col,r,c));
         break;
       }
       if(s===dist) addRoute(r,c,false,buildStraightPath(row,col,r,c));
@@ -1804,6 +1820,8 @@ function getDiceMoves(row,col,p){
   }
 
   // L-shapes: enumerate both elbow orientations for every reachable L-destination
+  // Precision card: skip L-shapes for the opponent's entire next turn
+  if(!(precisionActive&&p.color!=='white'))
   for(const d1 of DIRS){
     let r1=row,c1=col;
     for(let seg1=1;seg1<dist;seg1++){
@@ -1824,7 +1842,9 @@ function getDiceMoves(row,col,p){
             const rowFirst=(d1.dr!==0);
             const path=buildElbowPath(row,col,r2,c2,rowFirst);
             if(t){
-              if(s2===seg2&&t.color!==p.color&&pathInteriorClear(path)) addRoute(r2,c2,true,path);
+              // Shielded piece cannot be captured
+              const isShielded=shieldedPiece&&r2===shieldedPiece.r&&c2===shieldedPiece.c;
+              if(s2===seg2&&t.color!==p.color&&!isShielded&&pathInteriorClear(path)) addRoute(r2,c2,true,path);
               break;
             }
             if(s2===seg2&&pathInteriorClear(path)) addRoute(r2,c2,false,path);
@@ -1876,16 +1896,19 @@ function executeMove(fr,fc,tr,tc,chosenPath){
     };
   }
 
-  // Check frozen piece — if target piece is frozen and it tries to move, block
+  // Frozen piece safety net — should never be reached since getAllMoves filters it out
   if(frozenPiece&&turn===aiColor&&fr===frozenPiece.r&&fc===frozenPiece.c){
     frozenPiece=null;
-    return; // AI's frozen piece skips its move
+    // Re-trigger AI to pick a different piece rather than getting stuck
+    if(!gameOver) setTimeout(triggerAIMove, 100);
+    return;
   }
 
-  // Shield: cancel capture if target is shielded
+  // Shield: safety net — clear shield if somehow a capture attempt reaches here
   if(shieldedPiece&&target&&tr===shieldedPiece.r&&tc===shieldedPiece.c){
     shieldedPiece=null;
     setStatus('🛡️ Shield blocked the capture!');
+    return;
   }
 
   // Deep Freeze: block all captures
@@ -1894,7 +1917,7 @@ function executeMove(fr,fc,tr,tc,chosenPath){
     return;
   }
 
-  // Empowerment: treat moving piece as value 6 for path validation
+  // Empowerment: clear flag once the empowered piece has moved
   if(empowermentPiece&&fr===empowermentPiece.r&&fc===empowermentPiece.c){
     empowermentPiece=null;
   }
@@ -1995,8 +2018,11 @@ function executeMove(fr,fc,tr,tc,chosenPath){
 
     turn=turn==='white'?'black':'white';
     selected=null;validMoves=[];pendingMove=null;
-    // Clear frozen piece after AI's turn
+    // Clear frozen piece, shielded piece and precision debuff after AI's turn
     if(turn==='white') frozenPiece=null;
+    if(turn==='white') shieldedPiece=null;
+    if(turn==='white') precisionActive=false;
+    if(turn==='white') cardPlayedThisRound=false;
     // Clear spell effects at start of new round (when it's white's turn again)
     if(turn==='white') clearSpellEffects();
     playSoundTurnChange();
@@ -2425,11 +2451,32 @@ function renderHistory(){
   }
 
   // Group into pairs (white move + black move per round), newest first
+  // cardMove entries are attached to the same slot as the following regular move
   const rounds=[];
   let i=0;
   while(i<moveHistory.length){
-    rounds.push({wMove:moveHistory[i], bMove:moveHistory[i+1]||null, roundNum:Math.floor(i/2)+1, i});
-    i+=2;
+    // Collect any card-move entries that precede the white move this round
+    const wCards=[];
+    while(i<moveHistory.length&&moveHistory[i].cardMove) wCards.push(moveHistory[i++]);
+    const wMove=moveHistory[i]||null;
+    if(wMove) i++;
+    // Collect any card-move entries between white and black moves
+    const bCards=[];
+    while(i<moveHistory.length&&moveHistory[i].cardMove) bCards.push(moveHistory[i++]);
+    const bMove=moveHistory[i]||null;
+    if(bMove) i++;
+    // Attach card events to the moves they precede as cardsPlayed badges
+    if(wMove&&wCards.length){
+      if(!wMove.cardsPlayed) wMove.cardsPlayed=[];
+      wCards.forEach(cm=>{ if(!wMove.cardsPlayed.includes(cm.cardName)) wMove.cardsPlayed.unshift(cm.cardName); });
+      wMove._cardsBefore=wCards;
+    }
+    if(bMove&&bCards.length){
+      if(!bMove.cardsPlayed) bMove.cardsPlayed=[];
+      bCards.forEach(cm=>{ if(!bMove.cardsPlayed.includes(cm.cardName)) bMove.cardsPlayed.unshift(cm.cardName); });
+      bMove._cardsBefore=bCards;
+    }
+    rounds.push({wMove, bMove, roundNum:rounds.length+1, i});
   }
   rounds.reverse();
 
@@ -2447,10 +2494,66 @@ function renderHistory(){
 
     [wMove, bMove].forEach(m=>{
       if(!m) return;
+
+      // Render any card-move entries that preceded this move
+      if(m._cardsBefore){
+        m._cardsBefore.forEach(cm=>{
+          const cline=document.createElement('div');
+          cline.className='move-line';
+          cline.style.cursor='pointer';
+          cline.addEventListener('click',()=>replayMove(cm.n-1));
+          const cdot=document.createElement('span');
+          cdot.className=`mv-color ${cm.color}`;
+          cline.appendChild(cdot);
+          const cbadge=document.createElement('span');
+          cbadge.style.cssText='font-size:.8rem;margin-right:2px;';
+          cbadge.textContent='🃏';
+          cline.appendChild(cbadge);
+          const cardIcon=cm.cardIcon||(FATE_CARD_DEFS.find(c=>c.id===cm.cardId)||{}).icon||'';
+          if(cardIcon){
+            const ci=document.createElement('span');
+            ci.style.cssText='font-size:.8rem;margin-right:3px;';
+            ci.textContent=cardIcon;
+            cline.appendChild(ci);
+          }
+          const clabel=document.createElement('span');
+          clabel.className='mv-coords';
+          clabel.style.color='var(--gold-light)';
+          clabel.textContent=cm.cardName;
+          cline.appendChild(clabel);
+          pair.appendChild(cline);
+        });
+      }
       const line=document.createElement('div');
       line.className='move-line';
       line.style.cursor='pointer';
       line.addEventListener('click',()=>replayMove(m.n-1));
+
+      // Card-move entries (Teleport, Mirror) — render as a compact card event row
+      if(m.cardMove){
+        const dot=document.createElement('span');
+        dot.className=`mv-color ${m.color}`;
+        line.appendChild(dot);
+        const badge=document.createElement('span');
+        badge.style.cssText='font-size:.8rem;margin-right:2px;';
+        badge.textContent='🃏';
+        line.appendChild(badge);
+        // Card-specific icon
+        const cardIcon=m.cardIcon||(FATE_CARD_DEFS.find(c=>c.id===m.cardId)||{}).icon||'';
+        if(cardIcon){
+          const icon=document.createElement('span');
+          icon.style.cssText='font-size:.8rem;margin-right:3px;';
+          icon.textContent=cardIcon;
+          line.appendChild(icon);
+        }
+        const label=document.createElement('span');
+        label.className='mv-coords';
+        label.style.color='var(--gold-light)';
+        label.textContent=m.cardName;
+        line.appendChild(label);
+        pair.appendChild(line);
+        return;
+      }
 
       // Colour dot
       const dot=document.createElement('span');
@@ -2522,6 +2625,17 @@ function renderHistory(){
         cb.textContent='🃏';
         cb.title='Card played: '+m.cardsPlayed.join(', ');
         line.appendChild(cb);
+        // Show each card's specific icon
+        m.cardsPlayed.forEach(name=>{
+          const def=FATE_CARD_DEFS.find(c=>c.name===name);
+          if(def&&def.icon){
+            const ci=document.createElement('span');
+            ci.style.cssText='font-size:.8rem;flex-shrink:0;cursor:default;';
+            ci.textContent=def.icon;
+            ci.title=name;
+            line.appendChild(ci);
+          }
+        });
       }
 
       pair.appendChild(line);
@@ -3963,7 +4077,7 @@ const FATE_CARD_DEFS=[
   {id:'second_wind',  icon:'⚡', name:'Second Wind', desc:'Take a second move this turn'},
   {id:'shield',       icon:'🛡️',  name:'Shield',      desc:'One die can\'t be captured next turn'},
   {id:'shatter',      icon:'💥', name:'Shatter',     desc:'Reduce enemy die\'s value by 2'},
-  {id:'precision',    icon:'🎯', name:'Precision',   desc:'Move in a straight line this turn'},
+  {id:'precision',    icon:'🎯', name:'Precision',   desc:'Force all enemy dice to move straight lines only on their next turn'},
   {id:'undo',         icon:'⏪', name:'Undo',        desc:'Take back your last move'},
   {id:'empowerment',  icon:'🌟', name:'Empowerment', desc:'One die moves as if value is 6'},
   {id:'flux',         icon:'🔃', name:'Flux',        desc:'Randomise ALL dice face values'},
@@ -3972,6 +4086,7 @@ const FATE_CARD_DEFS=[
 
 let fateCardHand=[];       // current hand [{...def, used:false}, ...]
 let fateCardTargeting=null; // {cardId, step, data} — multi-step targeting state
+let cardPlayedThisRound=false; // only 1 card allowed per round
 let shieldedPiece=null;     // {r,c} of shielded piece
 let frozenPiece=null;       // {r,c} of frozen piece
 let precisionActive=false;  // straight-line move active
@@ -4008,12 +4123,14 @@ function renderCardTray(){
   tray.innerHTML='';
   fateCardHand.forEach((card,i)=>{
     const el=document.createElement('div');
-    el.className='fate-card'+(card.used?' used':'')+(fateCardTargeting?.cardId===card.id?' targeting':'');
-    el.title=card.desc;
+    const isUndoNotReady=card.id==='undo'&&moveHistory.length<2;
+    const blockedByLimit=!card.used&&cardPlayedThisRound;
+    el.className='fate-card'+(card.used||isUndoNotReady||blockedByLimit?' used':'')+(fateCardTargeting?.cardId===card.id?' targeting':'');
+    el.title=isUndoNotReady?'Undo — make at least 1 full round first':blockedByLimit?'Only 1 card per round':card.desc;
     el.innerHTML=`<div class="fate-card-icon">${card.icon}</div>
       <div class="fate-card-name">${card.name}</div>
       <div class="fate-card-desc">${card.desc}</div>`;
-    if(!card.used&&isPlayerTurn){
+    if(!card.used&&!isUndoNotReady&&!blockedByLimit&&isPlayerTurn){
       el.onclick=()=>activateFateCard(i);
     }
     tray.appendChild(el);
@@ -4026,7 +4143,7 @@ function activateFateCard(idx){
   if(fateCardTargeting){ cancelCardTargeting(); return; }
 
   switch(card.id){
-    case 'reroll':      cardReroll(idx); break;
+    case 'reroll':      cardStartTargeting(idx,'reroll_pick'); break;
     case 'freeze':      cardStartTargeting(idx,'freeze_pick'); break;
     case 'teleport':    cardStartTargeting(idx,'teleport_pick'); break;
     case 'mirror':      cardStartTargeting(idx,'mirror_pick1'); break;
@@ -4043,11 +4160,27 @@ function activateFateCard(idx){
 
 function markCardUsed(idx, extraHistoryNote){
   fateCardHand[idx].used=true;
-  // Tag current move or create standalone history note
-  if(moveHistory.length>0){
-    const last=moveHistory[moveHistory.length-1];
-    if(!last.cardsPlayed) last.cardsPlayed=[];
-    last.cardsPlayed.push(fateCardHand[idx].name);
+  cardPlayedThisRound=true;
+  // Cards that add their own cardMove history entry don't need tagging here
+  const selfRecordingCards=['teleport','mirror'];
+  if(!selfRecordingCards.includes(fateCardHand[idx].id)){
+    if(moveHistory.length>0){
+      // Tag onto the last move entry
+      const last=moveHistory[moveHistory.length-1];
+      if(!last.cardsPlayed) last.cardsPlayed=[];
+      last.cardsPlayed.push(fateCardHand[idx].name);
+    } else {
+      // No moves yet — create a standalone card entry so it appears in history
+      const card=fateCardHand[idx];
+      moveHistory.push({
+        n:moveHistory.length+1, color:'white', type:'card',
+        cardMove:true, cardId:card.id, cardName:card.name, cardIcon:card.icon,
+        fr:null, fc:null, tr:null, tc:null,
+        from:'', to:'', path:[], valBefore:null, valAfter:null,
+        capture:false, capturedType:null, lShape:false,
+        cardsPlayed:[card.name]
+      });
+    }
   }
   renderCardTray();
   renderHistory();
@@ -4069,6 +4202,7 @@ function cancelCardTargeting(){
 
 function getTargetingPrompt(step){
   const prompts={
+    reroll_pick:'Click one of your dice to reroll it',
     freeze_pick:'Click an enemy die to freeze it',
     teleport_pick:'Click one of your dice to teleport',
     teleport_dest:'Click an empty square as the destination',
@@ -4087,6 +4221,16 @@ function handleCardTargetClick(r,c){
   const {cardId,idx,step,data}=fateCardTargeting;
   const piece=board[r][c];
 
+  if(cardId==='reroll'&&step==='reroll_pick'){
+    if(!piece||piece.color!=='white'||piece.type==='king') return true;
+    const oldVal=piece.ori.top;
+    piece.ori.top=Math.ceil(Math.random()*6);
+    setStatus(`🔄 Rerolled! Die changed from ${oldVal} to ${piece.ori.top}.`);
+    markCardUsed(idx);
+    fateCardTargeting=null;
+    render();
+    return true;
+  }
   if(cardId==='freeze'&&step==='freeze_pick'){
     if(!piece||piece.color==='white'||piece.type==='king') return true;
     frozenPiece={r,c};
@@ -4106,8 +4250,18 @@ function handleCardTargetClick(r,c){
   }
   if(cardId==='teleport'&&step==='teleport_dest'){
     if(piece) return true; // must be empty
-    board[r][c]=board[data.fromR][data.fromC];
+    const movingPiece=board[data.fromR][data.fromC];
+    board[r][c]=movingPiece;
     board[data.fromR][data.fromC]=null;
+    // Record as a card-move history entry so replay can reconstruct the board
+    moveHistory.push({
+      n:moveHistory.length+1, color:'white', type:'card',
+      cardMove:true, cardId:'teleport', cardName:'Teleport', cardIcon:'🌀',
+      fr:data.fromR, fc:data.fromC, tr:r, tc:c,
+      from:'', to:'', path:[], valBefore:null, valAfter:null,
+      capture:false, capturedType:null, lShape:false,
+      cardsPlayed:['Teleport']
+    });
     setStatus('🌀 Teleported!');
     markCardUsed(idx);
     fateCardTargeting=null;
@@ -4127,6 +4281,16 @@ function handleCardTargetClick(r,c){
     const tmp=board[r][c];
     board[r][c]=board[data.r1][data.c1];
     board[data.r1][data.c1]=tmp;
+    // Record as a card-move history entry so replay can reconstruct the board
+    moveHistory.push({
+      n:moveHistory.length+1, color:'white', type:'card',
+      cardMove:true, cardId:'mirror', cardName:'Mirror', cardIcon:'🔀',
+      fr:data.r1, fc:data.c1, tr:r, tc:c,
+      swapFr:r, swapFc:c, swapTr:data.r1, swapTc:data.c1,
+      from:'', to:'', path:[], valBefore:null, valAfter:null,
+      capture:false, capturedType:null, lShape:false,
+      cardsPlayed:['Mirror']
+    });
     setStatus('🔀 Swapped!');
     markCardUsed(idx);
     fateCardTargeting=null;
@@ -4163,23 +4327,6 @@ function handleCardTargetClick(r,c){
   return false;
 }
 
-function cardReroll(idx){
-  // Randomly reroll one of your dice — pick the first non-king white piece
-  const candidates=[];
-  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
-    const p=board[r][c];
-    if(p&&p.color==='white'&&p.type==='dice') candidates.push({r,c,p});
-  }
-  if(!candidates.length) return;
-  // Pick a random one
-  const target=candidates[Math.floor(Math.random()*candidates.length)];
-  const oldVal=target.p.ori.top;
-  target.p.ori.top=Math.ceil(Math.random()*6);
-  setStatus(`🔄 Rerolled! Die changed from ${oldVal} to ${target.p.ori.top}.`);
-  markCardUsed(idx);
-  render();
-}
-
 function cardSecondWind(idx){
   markCardUsed(idx);
   setStatus('⚡ Second Wind! Take another move.');
@@ -4191,8 +4338,8 @@ function cardSecondWind(idx){
 function cardPrecision(idx){
   precisionActive=true;
   markCardUsed(idx);
-  setStatus('🎯 Precision active! Move in a straight line this turn.');
-  render(); // recompute valid moves
+  setStatus('🎯 Precision! Enemy dice restricted to straight-line moves next turn.');
+  render();
 }
 
 function cardUndo(idx){
@@ -4242,6 +4389,7 @@ let secondWindPending=false;
 function resetCardState(){
   fateCardHand=[];
   fateCardTargeting=null;
+  cardPlayedThisRound=false;
   shieldedPiece=null;
   frozenPiece=null;
   precisionActive=false;
@@ -4613,6 +4761,8 @@ function getAllMoves(b, color){
   for(let r=0;r<9;r++) for(let c=0;c<9;c++){
     const p=b[r][c];
     if(!p||p.color!==color) continue;
+    // Skip the frozen piece — it cannot move this turn
+    if(frozenPiece&&r===frozenPiece.r&&c===frozenPiece.c) continue;
     // Temporarily swap global board for move generation
     const savedBoard=board;
     board=b;
@@ -6150,8 +6300,9 @@ async function renderStatsView(){
     const allGames=await getAllGames();
     scoreNames.forEach((name,i)=>{
       const depth=i+1;
-      const wins=allGames.filter(g=>g.mode==='ai'&&g.winner==='white'&&g.score&&
-        (g.difficulty===name));
+    const wins=allGames.filter(g=>g.mode==='ai'&&g.winner==='white'&&g.score&&
+        (g.difficulty===name)&&
+        (!g.specialMechanics||g.specialMechanics.length===0));
       const best=wins.reduce((max,g)=>Math.max(max,g.score||0),0);
       const avg=wins.length?Math.round(wins.reduce((sum,g)=>sum+(g.score||0),0)/wins.length):0;
       if(best>0){
@@ -6212,8 +6363,21 @@ function buildReplayBoards(){
   // Apply each move in sequence
   let b=cloneBoard(startBoard);
   for(const m of moveHistory){
-    b=applyMove(b,m.fr,m.fc,m.tr,m.tc,m.path);
-    snapshots.push(cloneBoard(b));
+    if(m.cardMove){
+      // Card-generated board mutations — apply directly without applyMove
+      if(m.cardId==='teleport'){
+        b[m.tr][m.tc]=b[m.fr][m.fc];
+        b[m.fr][m.fc]=null;
+      } else if(m.cardId==='mirror'){
+        const tmp=b[m.tr][m.tc];
+        b[m.tr][m.tc]=b[m.fr][m.fc];
+        b[m.fr][m.fc]=tmp;
+      }
+      snapshots.push(cloneBoard(b));
+    } else {
+      b=applyMove(b,m.fr,m.fc,m.tr,m.tc,m.path);
+      snapshots.push(cloneBoard(b));
+    }
   }
   return snapshots;
 }

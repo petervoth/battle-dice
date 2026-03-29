@@ -2218,7 +2218,13 @@ function renderHistory(){
       // Die value before (pip char) or King symbol
       const dieBefore=document.createElement('span');
       dieBefore.className='mv-die';
-      dieBefore.textContent=m.type==='king'?'♔':(PIP_CHARS[m.valBefore]||'?');
+      if(m.type==='king'){
+        dieBefore.textContent='♔';
+        dieBefore.title='King';
+      } else {
+        dieBefore.textContent=PIP_CHARS[m.valBefore]||'?';
+        dieBefore.title=`Face value: ${m.valBefore} (before move)`;
+      }
       line.appendChild(dieBefore);
 
       // From coord
@@ -2231,6 +2237,7 @@ function renderHistory(){
       const arrow=document.createElement('span');
       arrow.className='mv-arrow';
       arrow.textContent=m.lShape?'⌐':'→';
+      arrow.title=m.lShape?'L-shape move':'Straight move';
       line.appendChild(arrow);
 
       // To coord
@@ -2244,6 +2251,7 @@ function renderHistory(){
         const dieAfter=document.createElement('span');
         dieAfter.className='mv-result';
         dieAfter.textContent=PIP_CHARS[m.valAfter]||'?';
+        dieAfter.title=`Face value: ${m.valAfter} (after move)`;
         line.appendChild(dieAfter);
       }
 
@@ -2252,6 +2260,7 @@ function renderHistory(){
         const cap=document.createElement('span');
         cap.className='mv-capture';
         cap.textContent=m.capturedType==='king'?'✕♔':'✕';
+        cap.title=m.capturedType==='king'?'King captured!':'Piece captured';
         line.appendChild(cap);
       }
 
@@ -2260,6 +2269,7 @@ function renderHistory(){
         const ls=document.createElement('span');
         ls.className='mv-lshape';
         ls.textContent='L';
+        ls.title='L-shape route used';
         line.appendChild(ls);
       }
 
@@ -3089,12 +3099,17 @@ const TUT_SLIDES=[
     title:'How Dice Move',
     render(el){
       el.innerHTML=`<div class="tut-title">Top face = movement range</div>`;
-      const {wrap,grid,cellPx}=makeTutBoard(5,[{r:2,c:2,val:3,color:'white'}]);
-      // Highlight reachable cells for a die showing 3 (L-shape, 3 squares)
-      const moves=[[0,2],[1,1],[1,3],[3,1],[3,3],[4,2],[2,0],[2,4]];
+      const {wrap,grid,cellPx}=makeTutBoard(7,[{r:3,c:3,val:3,color:'white'}]);
+      // All valid destinations for val=3 die at (3,3) on a 7x7 board
+      // Straight (3 in one direction): up(0,3), down(6,3), left(3,0), right(3,6)
+      // L-shape 2+1: (±2,±1) and (±1,±2)
+      const moves=[
+        [0,3],[6,3],[3,0],[3,6],   // straight
+        [1,2],[1,4],[2,1],[2,5],   // up 2, left/right 1 | up 1, left/right 2
+        [4,1],[4,5],[5,2],[5,4],   // down 1, left/right 2 | down 2, left/right 1
+      ];
       moves.forEach(([r,c])=>{
-        if(r>=0&&r<5&&c>=0&&c<5)
-          grid[r][c].className='tut-cell highlight-move '+((r+c)%2===0?'dark':'light');
+        grid[r][c].className='tut-cell highlight-move '+((r+c)%2===0?'dark':'light');
       });
       el.appendChild(wrap);
       el.innerHTML+=`<div class="tut-label">
@@ -3104,14 +3119,12 @@ const TUT_SLIDES=[
         <span style="color:rgba(100,200,255,.8);">Blue squares</span> show all valid destinations.</div>`;
 
       // Animate the die pulsing
-      const dieEl=grid[2][2].querySelector('.tut-die');
+      const dieEl=grid[3][3].querySelector('.tut-die');
       let on=true;
       _tutAnimTimer=setInterval(()=>{
         on=!on;
         moves.forEach(([r,c])=>{
-          if(r>=0&&r<5&&c>=0&&c<5){
-            grid[r][c].style.opacity=on?'1':'0.3';
-          }
+          grid[r][c].style.opacity=on?'1':'0.3';
         });
       },700);
     }
@@ -3125,7 +3138,6 @@ const TUT_SLIDES=[
       const {wrap,grid,cellPx}=makeTutBoard(3,[
         {r:1,c:0,val:3,color:'white'},
       ]);
-      grid[1][2].className='tut-cell highlight-move '+((1+2)%2===0?'dark':'light');
       el.appendChild(wrap);
 
       const label=document.createElement('div');
@@ -3137,15 +3149,47 @@ const TUT_SLIDES=[
         after it moves, not just where it's going right now.`;
       el.appendChild(label);
 
-      // Animate: cycle the die between values 3 → 5 → 1 → 3
-      const vals=[3,5,1,4,2,6];
-      let vi=0;
+      // Animate: die rolls from col 0 → 1 → 2, changing face each step, then resets
+      // Each step: move die to next cell with a new face value
+      const steps=[
+        {col:0, val:3},  // start
+        {col:1, val:5},  // rolled 1 square → face changes
+        {col:2, val:4},  // rolled another square → face changes again
+      ];
+      let step=0;
+      let prevCol=0;
+
+      function doStep(){
+        // Clear previous cell
+        grid[1][prevCol].innerHTML='';
+        // Place die at new position
+        const {col,val}=steps[step];
+        // Highlight current cell gold, destination dimmed
+        grid[1][0].className='tut-cell '+((1+0)%2===0?'dark':'light');
+        grid[1][1].className='tut-cell '+((1+1)%2===0?'dark':'light');
+        grid[1][2].className='tut-cell '+((1+2)%2===0?'dark':'light');
+        // Highlight the active cell
+        grid[1][col].className='tut-cell highlight '+((1+col)%2===0?'dark':'light');
+        // If not the last step, faintly highlight the destination
+        if(col<2){
+          grid[1][2].className='tut-cell highlight-move '+((1+2)%2===0?'dark':'light');
+        }
+        grid[1][col].appendChild(makeTutDie(val,'white'));
+        prevCol=col;
+      }
+
+      doStep(); // show initial state
+
       _tutAnimTimer=setInterval(()=>{
-        vi=(vi+1)%vals.length;
-        const cell=grid[1][0];
-        cell.innerHTML='';
-        cell.appendChild(makeTutDie(vals[vi],'white'));
-      },800);
+        step=(step+1)%steps.length;
+        // Brief pause at final position before resetting
+        if(step===0){
+          // Reset: clear all, pause slightly then restart
+          setTimeout(doStep, 400);
+        } else {
+          doStep();
+        }
+      },1000);
     }
   },
 

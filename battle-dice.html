@@ -1211,35 +1211,37 @@ body.replay-mode #playback-bar{
       </div>
       <div style="display:flex;gap:8px;margin-top:20px;">
         <button class="modal-btn" style="flex:1;" onclick="showModalView('saved')">
-          <span class="modal-btn-label">📜 History</span>
+          <span class="modal-btn-label">History</span>
           <span class="modal-btn-desc">Past games</span>
         </button>
         <button class="modal-btn" style="flex:1;" onclick="showModalView('stats')">
-          <span class="modal-btn-label">📊 Statistics</span>
+          <span class="modal-btn-label">Statistics</span>
           <span class="modal-btn-desc">Win/loss records</span>
         </button>
       </div>
-      <button class="modal-btn" style="margin-top:8px;width:100%;" onclick="showModalView('tutorial')">
-        <span class="modal-btn-label">📖 How to Play</span>
-        <span class="modal-btn-desc">Animated rules & scoring guide</span>
-      </button>
-      <button class="modal-btn" style="margin-top:8px;width:100%;" onclick="showModalView('specials')">
-        <span class="modal-btn-label">✨ Special Mechanics</span>
-        <span class="modal-btn-desc" id="specials-menu-desc">Optional bonus features — all off</span>
-      </button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="modal-btn" style="flex:1;" onclick="showModalView('tutorial')">
+          <span class="modal-btn-label">How to Play</span>
+          <span class="modal-btn-desc">Animated rules & scoring guide</span>
+        </button>
+        <button class="modal-btn" style="flex:1;" onclick="showModalView('specials')">
+          <span class="modal-btn-label">Specials</span>
+          <span class="modal-btn-desc" id="specials-menu-desc">Optional bonus features — all off</span>
+        </button>
+      </div>
     </div>
 
     <!-- VIEW: SPECIAL MECHANICS -->
     <div id="modal-view-specials" style="display:none;">
-      <h2 class="modal-title" style="margin-bottom:4px;">✨ Special Mechanics</h2>
-      <p class="modal-sub" style="margin-bottom:12px;">Toggle optional bonus features.<br>Changes apply to your next game.<br>Features are experimental, may break gameplay, and are not meant to be part of competitive matches.<br>Use at your own risk.</p>
+      <h2 class="modal-title" style="margin-bottom:4px;text-align:center;">Specials</h2>
+      <p class="modal-sub" style="margin-bottom:12px;">Sometimes we just need a little help.<br>Toggle optional Specials and ruin the AI's day.<br>Changes apply to your next game.<br>Specials are experimental, may break gameplay, and are not meant to be part of competitive matches.<br>Use at your own risk.</p>
       <div id="specials-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <button class="modal-btn" style="margin-top:14px;width:100%;" onclick="showModalView('main')">← Back</button>
     </div>
 
     <!-- VIEW: TUTORIAL -->
     <div id="modal-view-tutorial" style="display:none;">
-      <h2 class="modal-title" style="margin-bottom:4px;">📖 How to Play</h2>
+      <h2 class="modal-title" style="margin-bottom:4px;text-align:center;">How to Play</h2>
       <!-- Progress dots -->
       <div id="tut-dots" style="display:flex;justify-content:center;gap:6px;margin-bottom:10px;"></div>
       <!-- Slide container -->
@@ -1255,7 +1257,7 @@ body.replay-mode #playback-bar{
 
     <!-- VIEW: HUMAN VS AI -->
     <div id="modal-view-ai" style="display:none;">
-      <h2 class="modal-title" style="margin-bottom:4px;">♟ ⚙ Human vs AI</h2>
+      <h2 class="modal-title" style="margin-bottom:4px;">♟ Human vs AI ⚙</h2>
       <p class="modal-sub" style="margin-bottom:14px;">Select a difficulty to begin</p>
       <div class="modal-btns" id="diff-buttons"></div>
       <button class="modal-btn" style="margin-top:14px;" onclick="showModalView('main')">← Back</button>
@@ -1330,14 +1332,14 @@ body.replay-mode #playback-bar{
 
     <!-- VIEW: HISTORY -->
     <div id="modal-view-saved" style="display:none;">
-      <h2 class="modal-title" style="margin-bottom:8px;">📜 History</h2>
+      <h2 class="modal-title" style="margin-bottom:8px;text-align:center;">History</h2>
       <div id="saved-games-list"></div>
       <button class="modal-btn" style="margin-top:12px;" onclick="showModalView('main')">← Back</button>
     </div>
 
     <!-- VIEW: STATISTICS -->
     <div id="modal-view-stats" style="display:none;">
-      <h2 class="modal-title" style="margin-bottom:8px;">📊 Statistics</h2>
+      <h2 class="modal-title" style="margin-bottom:8px;text-align:center;">Statistics</h2>
       <div style="display:flex;gap:6px;margin-bottom:10px;">
         <button class="pb-speed-btn active-speed" id="stats-tab-btn" onclick="switchStatsTab('stats')">Stats</button>
         <button class="pb-speed-btn" id="achieve-tab-btn" onclick="switchStatsTab('achievements')">🏆 Achievements</button>

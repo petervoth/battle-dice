@@ -3520,8 +3520,8 @@ const TUT_SLIDES=[
       ]);
       el.appendChild(wrap);
       el.innerHTML+=`<div class="tut-label">
-        <strong style="color:var(--gold-light);">Black</strong> starts at the top (rows 0–1).
-        <strong style="color:var(--gold-light);">White</strong> starts at the bottom (rows 7–8).
+        <strong style="color:var(--gold-light);">Black</strong> starts at the top (rows 8–9).
+        <strong style="color:var(--gold-light);">White</strong> starts at the bottom (rows 1–2).
         The back row dice are specially oriented along with the King. The front row dice are all standard 1's to begin.</div>`;
     }
   },
@@ -3532,30 +3532,69 @@ const TUT_SLIDES=[
     render(el){
       el.innerHTML=`<div class="tut-title">Top face = movement range</div>`;
       const {wrap,grid,cellPx}=makeTutBoard(7,[{r:3,c:3,val:3,color:'white'}]);
-      // All valid destinations for val=3 die at (3,3) on a 7x7 board
-      // Straight (3 in one direction): up(0,3), down(6,3), left(3,0), right(3,6)
-      // L-shape 2+1: (±2,±1) and (±1,±2)
-      const moves=[
-        [0,3],[6,3],[3,0],[3,6],   // straight
-        [1,2],[1,4],[2,1],[2,5],   // up 2, left/right 1 | up 1, left/right 2
-        [4,1],[4,5],[5,2],[5,4],   // down 1, left/right 2 | down 2, left/right 1
-      ];
-      moves.forEach(([r,c])=>{
+
+      // Straight moves — single solid highlight
+      const straight=[[0,3],[6,3],[3,0],[3,6]];
+      straight.forEach(([r,c])=>{
         grid[r][c].className='tut-cell highlight-move '+((r+c)%2===0?'dark':'light');
       });
+
+      // L-shape moves — dual route triangles, matching real game SVG style
+      // Each entry: [r, c, above, right] — above=die is above dest, right=die is right of dest
+      const lMoves=[
+        [1,2, true,  false], // die(3,3) → above & right of dest
+        [1,4, true,  true ],
+        [2,1, true,  false],
+        [2,5, true,  true ],
+        [4,1, false, false],
+        [4,5, false, true ],
+        [5,2, false, false],
+        [5,4, false, true ],
+      ];
+
+      const colorA='rgba(80,220,120,.55)';
+      const colorB='rgba(100,180,255,.55)';
+
+      lMoves.forEach(([r,c,above,right])=>{
+        grid[r][c].className='tut-cell '+((r+c)%2===0?'dark':'light');
+        grid[r][c].style.position='relative';
+        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.setAttribute('viewBox','0 0 100 100');
+        svg.setAttribute('preserveAspectRatio','none');
+        svg.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+
+        let ptsA, ptsB;
+        if(above && right){
+          ptsA='0,0 100,0 0,100'; ptsB='100,0 100,100 0,100';
+        } else if(above && !right){
+          ptsA='100,0 0,0 100,100'; ptsB='0,0 0,100 100,100';
+        } else if(!above && right){
+          ptsA='0,100 0,0 100,100'; ptsB='100,0 100,100 0,0';
+        } else {
+          ptsA='100,100 0,100 100,0'; ptsB='0,100 0,0 100,0';
+        }
+        const polyA=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+        polyA.setAttribute('points',ptsA); polyA.setAttribute('fill',colorA);
+        const polyB=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+        polyB.setAttribute('points',ptsB); polyB.setAttribute('fill',colorB);
+        svg.appendChild(polyA); svg.appendChild(polyB);
+        grid[r][c].appendChild(svg);
+      });
+
       el.appendChild(wrap);
       el.innerHTML+=`<div class="tut-label">
         A die showing <strong style="color:var(--gold-light);">3</strong> on top moves exactly <strong>3 squares</strong>
         in a straight line or an <strong style="color:rgba(100,200,255,.9);">L-shape</strong> — like a knight in chess,
         but the leg lengths are determined by the face value.<br><br>
-        <span style="color:rgba(100,200,255,.8);">Blue squares</span> show all valid destinations.</div>`;
+        <span style="color:rgba(80,220,120,.8);">Split squares</span> mean two different paths reach the same destination —
+        click a triangle to choose your approach route.</div>`;
 
-      // Animate the die pulsing
-      const dieEl=grid[3][3].querySelector('.tut-die');
+      // Animate all destination squares pulsing
+      const allMoves=[...straight, ...lMoves.map(([r,c])=>[r,c])];
       let on=true;
       _tutAnimTimer=setInterval(()=>{
         on=!on;
-        moves.forEach(([r,c])=>{
+        allMoves.forEach(([r,c])=>{
           grid[r][c].style.opacity=on?'1':'0.3';
         });
       },700);
@@ -3698,8 +3737,8 @@ const TUT_SLIDES=[
           text-transform:uppercase;letter-spacing:.08em;color:rgba(200,160,60,.6);">Example entry</div>
         <div style="display:grid;grid-template-columns:22px 1fr;gap:0 6px;line-height:2;">
           <span style="color:rgba(200,160,60,.5);font-size:.75rem;">3.</span>
-          <span>
-            <span style="color:rgba(245,230,200,.9);">●</span>
+          <span style="display:inline-flex;align-items:center;gap:3px;">
+            <span class="mv-color black" style="display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0;"></span>
             <span style="font-size:.85em;">⚄</span>
             <span style="color:rgba(245,230,200,.6);">→</span>
             <span style="font-size:.85em;">⚂</span>
@@ -3709,8 +3748,8 @@ const TUT_SLIDES=[
             <span style="color:rgba(200,160,60,.7);">♔</span>
           </span>
           <span></span>
-          <span>
-            <span style="color:rgba(200,200,200,.6);">○</span>
+          <span style="display:inline-flex;align-items:center;gap:3px;">
+            <span class="mv-color white" style="display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0;"></span>
             <span style="font-size:.85em;">⚁</span>
             <span style="color:rgba(245,230,200,.6);">→</span>
             <span style="font-size:.85em;">⚅</span>
@@ -3719,14 +3758,16 @@ const TUT_SLIDES=[
       </div>
       <div class="tut-label" style="font-size:.78rem;text-align:left;">
         <strong style="color:var(--gold-light);">Round number</strong> — each round is one move per player.<br>
-        <span class="tut-badge">●</span> Black's move &nbsp;
-        <span class="tut-badge">○</span> White's move<br>
+        <span style="display:inline-flex;align-items:center;gap:4px;"><span class="mv-color black" style="display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0;"></span> Black's move</span> &nbsp;
+        <span style="display:inline-flex;align-items:center;gap:4px;"><span class="mv-color white" style="display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0;"></span> White's move</span><br>
         <span class="tut-badge">⚄ → ⚂</span> Die face before → after rolling<br>
         <span class="tut-badge" style="color:rgba(220,80,80,.8);">✕</span> A capture was made &nbsp;
         <span class="tut-badge" style="color:rgba(40,180,160,.8);">L</span> Used an L-shape route<br>
-        <span class="tut-badge" style="color:rgba(200,160,60,.7);">♔</span> Outcomes were hidden (crown game) &nbsp;
-        <span class="tut-badge">🌐</span> Online game &nbsp;
-        <span class="tut-badge">⏱</span> Time control active
+        <span class="tut-badge" style="color:rgba(200,160,60,.7);">♔</span> Crown indicates the King was captured in this move<br><br>
+        <strong style="color:var(--gold-light);">Special Mechanics</strong><br>
+        <span class="tut-badge">🃏</span> A Fate Card was played that round<br>
+        <span class="tut-badge">✨</span> A Magic Spell activated that round<br>
+        <span class="tut-badge">🎲★</span> A Wild Die was involved in the move
       </div>`;
     }
   },

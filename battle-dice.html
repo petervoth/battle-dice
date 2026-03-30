@@ -1012,7 +1012,7 @@ body.replay-mode #playback-bar{
 
     <button id="btn-outcomes" onclick="toggleOutcomes()">⚄ Show Outcomes</button>
     <button id="btn-draw" onclick="offerDraw()" style="display:none;">🤝 Offer Draw</button>
-    <button onclick="showStartModal()">☰ Main Menu</button>
+    <button onclick="confirmQuitToMenu()">☰ Main Menu</button>
     <button id="sound-toggle-btn" onclick="toggleSound()" style="font-size:1rem;">🔊</button>
 
     <div class="ibox">
@@ -3056,6 +3056,41 @@ function showStartModal(){
   const mainInp=document.getElementById('main-nickname-input');
   if(mainInp) mainInp.value=loadNickname();
   updateMainMenuButtons();
+}
+
+function confirmQuitToMenu(){
+  // If no game in progress or game already over, just go straight to menu
+  if(!gameStarted||gameOver){ showStartModal(); return; }
+  const overlay=document.getElementById('quit-confirm-overlay');
+  overlay.style.display='flex';
+}
+
+function hideQuitConfirm(){
+  document.getElementById('quit-confirm-overlay').style.display='none';
+}
+
+function doQuitToMenu(){
+  hideQuitConfirm();
+  // Stop everything cleanly
+  stopTimer();
+  if(gameMode==='online') onlineLeaveGame();
+  // Full reset so the game is clean when they return
+  gameStarted=false;
+  gameOver=false;
+  gameMode=null;
+  moveHistory=[];
+  selected=null; validMoves=[];
+  captured={white:[],black:[]};
+  replayIndex=null;
+  fullReplayMode=false;
+  fullReplayPlaying=false;
+  if(fullReplayTimer){clearTimeout(fullReplayTimer);fullReplayTimer=null;}
+  document.body.classList.remove('replay-mode');
+  document.getElementById('playback-bar').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+  resetCardState();
+  setStatus('');
+  showStartModal();
 }
 
 function showDiffSelect(){
@@ -7482,6 +7517,29 @@ self.addEventListener('fetch',e=>{
     <div style="margin-top:10px;font-size:.72rem;color:rgba(245,230,200,.35);text-align:center;">
       Easy: 5 cards · Medium: 3 · Hard: 1 · Expert: 0
     </div>
+  </div>
+</div>
+<!-- QUIT CONFIRMATION MODAL -->
+<div id="quit-confirm-overlay" style="display:none;position:fixed;inset:0;z-index:600;
+  background:rgba(0,0,0,.75);align-items:center;justify-content:center;">
+  <div style="background:linear-gradient(160deg,var(--modal-bg1),var(--modal-bg2));
+    border:1px solid rgba(200,160,60,.35);border-radius:12px;padding:28px 28px 24px;
+    max-width:320px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.7);
+    position:relative;text-align:center;box-sizing:border-box;">
+    <button onclick="hideQuitConfirm()" style="position:absolute;top:10px;right:12px;
+      background:none;border:none;color:rgba(245,230,200,.4);font-size:1.2rem;cursor:pointer;
+      line-height:1;padding:2px 6px;z-index:1;width:auto!important;display:block;">✕</button>
+    <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;
+      color:var(--gold-light);margin-bottom:10px;">Quit Match?</div>
+    <div style="font-size:.88rem;color:rgba(245,230,200,.65);margin-bottom:20px;line-height:1.5;">
+      Are you sure you want to quit the match?<br>Your progress will be lost.
+    </div>
+    <button onclick="doQuitToMenu()" style="width:100%;padding:10px;font-family:'Playfair Display',serif;
+      font-size:.9rem;font-weight:700;border-radius:6px;cursor:pointer;
+      border:1px solid rgba(220,80,60,.5);background:rgba(220,80,60,.12);
+      color:rgba(255,140,120,.9);letter-spacing:.04em;transition:background .15s;">
+      Confirm
+    </button>
   </div>
 </div>
 </body>

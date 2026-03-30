@@ -812,11 +812,14 @@ body.replay-mode #playback-bar{
 }
 #playback-bar.show{display:flex;}
 #playback-mode-label{font-family:'Playfair Display',serif;font-size:.82rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);text-align:center;}
-#playback-controls{display:flex;justify-content:center;gap:6px;}
+#playback-controls{display:flex;align-items:center;justify-content:center;gap:6px;position:relative;}
+#playback-controls .pb-btn{flex-shrink:0;}
 .pb-btn{font-family:'Crimson Text',serif;font-size:1rem;font-weight:700;padding:5px 12px;border-radius:4px;border:1px solid rgba(200,160,60,.4);background:rgba(200,160,60,.1);color:var(--gold-light);cursor:pointer;transition:all .15s;width:auto;}
 .pb-btn:hover{background:rgba(200,160,60,.25);}
 .pb-btn:disabled{opacity:.35;cursor:default;}
 #pb-play{padding:5px 18px;font-size:1.1rem;}
+#pb-exit{font-family:'Crimson Text',serif;font-size:.82rem;font-weight:600;padding:5px 12px;border-radius:4px;width:auto;position:absolute;right:0;border:1px solid rgba(220,80,60,.4);background:rgba(220,80,60,.08);color:rgba(255,140,120,.8);cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
+#pb-exit:hover{background:rgba(220,80,60,.2);}
 #playback-scrubber-row{display:flex;align-items:center;gap:8px;}
 #pb-counter{font-family:'Playfair Display',serif;font-size:.75rem;color:rgba(200,160,60,.7);white-space:nowrap;min-width:52px;text-align:center;}
 #pb-scrubber{flex:1;height:4px;accent-color:var(--gold);cursor:pointer;}
@@ -825,7 +828,7 @@ body.replay-mode #playback-bar{
 .pb-speed-btn{font-family:'Crimson Text',serif;font-size:.78rem;font-weight:600;padding:3px 8px;border-radius:3px;border:1px solid rgba(200,160,60,.25);background:rgba(200,160,60,.06);color:rgba(200,160,60,.6);cursor:pointer;transition:all .15s;width:auto;}
 .pb-speed-btn:hover{background:rgba(200,160,60,.18);color:var(--gold-light);}
 .pb-speed-btn.active-speed{background:rgba(200,160,60,.22);color:var(--gold-light);border-color:var(--gold);}
-#pb-exit{font-family:'Crimson Text',serif;font-size:.82rem;font-weight:600;padding:5px 12px;border-radius:4px;width:100%;border:1px solid rgba(220,80,60,.4);background:rgba(220,80,60,.08);color:rgba(255,140,120,.8);cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:.05em;}
+#pb-exit{font-family:'Crimson Text',serif;font-size:.82rem;font-weight:600;padding:5px 12px;border-radius:4px;width:auto;margin-left:auto;border:1px solid rgba(220,80,60,.4);background:rgba(220,80,60,.08);color:rgba(255,140,120,.8);cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
 #pb-exit:hover{background:rgba(220,80,60,.2);}
 body.replay-mode #history-panel{opacity:1;pointer-events:auto;grid-row:1/3;align-self:start;}
 body.replay-mode #side-panel{display:none;}
@@ -931,6 +934,7 @@ body.replay-mode #playback-bar{
       <button class="pb-btn" id="pb-play"   onclick="replayTogglePlay()"  title="Play/Pause">▶</button>
       <button class="pb-btn" id="pb-next"   onclick="replayStep(1)"       title="Next">▶▶</button>
       <button class="pb-btn" id="pb-end"    onclick="replayJump(-1)"      title="End">▶▶|</button>
+      <button id="pb-exit" onclick="exitFullReplay()">✕ Exit Replay</button>
     </div>
     <div id="playback-scrubber-row">
       <span id="pb-counter">0 / 0</span>
@@ -945,7 +949,6 @@ body.replay-mode #playback-bar{
       <button class="pb-speed-btn" onclick="setReplaySpeed(300)">2×</button>
       <button class="pb-speed-btn" onclick="setReplaySpeed(150)">4×</button>
     </div>
-    <button id="pb-exit" onclick="exitFullReplay()">✕ Exit Replay</button>
   </div>
 <div id="cinematic-vignette"></div>
 

@@ -7226,6 +7226,9 @@ async function migrateScores(){
     // Calculate scores for all eligible games
     const bestPerDiff={};
     games.forEach(g=>{
+      // Only count games without Special Mechanics for leaderboard
+      const hasSpecials=g.specialMechanics&&g.specialMechanics.length>0;
+      if(hasSpecials) return;
       // Track best score per difficulty across ALL scored wins (including already-scored ones)
       if(g.mode==='ai'&&g.winner==='white'&&g.score){
         const name=g.difficulty;

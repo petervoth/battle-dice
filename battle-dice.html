@@ -916,7 +916,7 @@ body.replay-mode #playback-bar{
 #cinematic-label.show{display:block;animation:cinematic-text 4s ease forwards;}
 #cinematic-label.green{color:#40dc70;text-shadow:0 0 20px rgba(40,200,80,.9),0 2px 4px rgba(0,0,0,.9);}
 
-#overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:100;}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:300;}
 #overlay.show{display:flex;}
 #obox{background:var(--modal-bg1);border:2px solid var(--gold);border-radius:8px;padding:26px 34px;text-align:center;max-width:310px;display:flex;flex-direction:column;gap:6px;}
 #obox h2{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--gold-light);margin-bottom:4px;}
@@ -2305,8 +2305,6 @@ function endGame(msg){
   }
 
   document.getElementById('overlay').classList.add('show');
-
-  // Online: set up rematch listener and update button
   if(gameMode==='online'){
     const btn=document.getElementById('rematch-btn');
     if(btn){

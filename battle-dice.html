@@ -420,19 +420,22 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
     display:none;
   }
 
-  /* Side panel becomes a horizontal bottom drawer */
+  /* Side panel — fixed below board, scrollable, above tab bar */
   #side-panel{
-    grid-column:1;
-    grid-row:2;
-    width:100%;
-    display:none; /* hidden by default, shown via tab */
+    display:none;
+    position:fixed;
+    top:calc(100vw + 36px);
+    bottom:56px;
+    left:0;
+    right:0;
+    z-index:190;
     flex-direction:column;
     gap:7px;
-    padding:8px;
+    padding:12px;
     background:var(--panel-bg);
-    border-radius:8px;
-    border:1px solid rgba(200,160,60,.2);
+    border-top:1px solid rgba(200,160,60,.2);
     box-sizing:border-box;
+    overflow-y:auto;
   }
   #side-panel.mobile-open{display:flex;}
 
@@ -980,7 +983,7 @@ body.replay-mode #playback-bar{
     <button class="mobile-tab" id="tab-history" onclick="switchMobileTab('history')">
       <span class="tab-icon">📜</span>History
     </button>
-    <button class="mobile-tab" id="tab-menu" onclick="showStartModal()">
+    <button class="mobile-tab" id="tab-menu" onclick="confirmQuitToMenu()">
       <span class="tab-icon">☰</span>Menu
     </button>
   </div>
@@ -1029,7 +1032,6 @@ body.replay-mode #playback-bar{
 
     <button id="btn-outcomes" onclick="toggleOutcomes()">⚄ Show Outcomes</button>
     <button id="btn-draw" onclick="offerDraw()" style="display:none;">🤝 Offer Draw</button>
-    <button onclick="confirmQuitToMenu()">☰ Main Menu</button>
     <button id="sound-toggle-btn" onclick="toggleSound()" style="font-size:1rem;">🔊</button>
 
     <div class="ibox">
@@ -1040,8 +1042,6 @@ body.replay-mode #playback-bar{
       <h3>Captured by Black</h3>
       <div class="cap-area" id="cap-black"></div>
     </div>
-
-    <button onclick="showRules()">📋 Rules</button>
   </div>
 </div>
 

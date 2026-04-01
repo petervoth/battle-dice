@@ -420,32 +420,50 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
     display:none;
   }
 
-  /* Side panel — fixed below board, scrollable, above tab bar */
+  /* Side panel (INFO) — always visible, left half below board */
   #side-panel{
-    display:none;
+    display:flex !important;
     position:fixed;
     top:calc(100vw + 36px);
     bottom:56px;
     left:0;
-    right:0;
+    width:50%;
     z-index:190;
     flex-direction:column;
     gap:7px;
-    padding:12px;
+    padding:10px 8px;
     background:var(--panel-bg);
     border-top:1px solid rgba(200,160,60,.2);
+    border-right:1px solid rgba(200,160,60,.15);
     box-sizing:border-box;
     overflow-y:auto;
-    width:100%;
   }
-  #side-panel.mobile-open{display:flex;}
   #side-panel .ibox{width:100%;box-sizing:border-box;}
   #side-panel #turn-ind{width:100%;box-sizing:border-box;}
   #side-panel button{width:100%;box-sizing:border-box;}
   #side-panel #d3wrap{width:100%;display:flex;justify-content:center;}
   #side-panel #mode-badge{width:100%;text-align:center;}
 
-  /* Mobile bottom tab bar — fixed to bottom of screen */
+  /* Mobile history panel — always visible, right half below board */
+  #mobile-history-panel{
+    display:block !important;
+    position:fixed;
+    top:calc(100vw + 36px);
+    bottom:56px;
+    right:0;
+    width:50%;
+    z-index:190;
+    background:var(--panel-bg);
+    border-top:1px solid rgba(200,160,60,.2);
+    padding:10px 8px;
+    box-sizing:border-box;
+    overflow-y:auto;
+  }
+  #mobile-history-panel h3{
+    font-family:'Playfair Display',serif;font-size:.75rem;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--gold);
+    border-bottom:1px solid rgba(200,160,60,.2);padding-bottom:4px;margin-bottom:6px;
+  }
   #mobile-tab-bar{
     display:flex;
     position:fixed;
@@ -517,28 +535,6 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
     max-width:calc(100vw - 28px);
     min-height:unset;
     min-width:unset;
-  }
-
-  /* Mobile history panel — sits below board, above tab bar */
-  #mobile-history-panel{
-    display:none;
-    position:fixed;
-    top:calc(100vw + 36px); /* board height + h1 + padding */
-    bottom:56px;
-    left:0;
-    right:0;
-    z-index:190;
-    background:var(--panel-bg);
-    border-top:1px solid rgba(200,160,60,.2);
-    padding:10px 12px;
-    box-sizing:border-box;
-    overflow-y:auto;
-  }
-  #mobile-history-panel.mobile-open{display:block;}
-  #mobile-history-panel h3{
-    font-family:'Playfair Display',serif;font-size:.75rem;
-    letter-spacing:.1em;text-transform:uppercase;color:var(--gold);
-    border-bottom:1px solid rgba(200,160,60,.2);padding-bottom:4px;margin-bottom:6px;
   }
 
   /* Tighten up modal box on mobile */
@@ -978,18 +974,9 @@ body.replay-mode #playback-bar{
   </div>
 <div id="cinematic-vignette"></div>
 
-  <!-- MOBILE TAB BAR (hidden on desktop) -->
+  <!-- MOBILE TAB BAR (hidden on desktop) — single MENU button -->
   <div id="mobile-tab-bar">
-    <button class="mobile-tab active" id="tab-game" onclick="switchMobileTab('game')">
-      <span class="tab-icon">⚄</span>Game
-    </button>
-    <button class="mobile-tab" id="tab-info" onclick="switchMobileTab('info')">
-      <span class="tab-icon">⏱</span>Info
-    </button>
-    <button class="mobile-tab" id="tab-history" onclick="switchMobileTab('history')">
-      <span class="tab-icon">📜</span>History
-    </button>
-    <button class="mobile-tab" id="tab-menu" onclick="confirmQuitToMenu()">
+    <button class="mobile-tab active" id="tab-menu" onclick="confirmQuitToMenu()" style="flex:1;">
       <span class="tab-icon">☰</span>Menu
     </button>
   </div>
@@ -2723,7 +2710,7 @@ function renderHistory(){
   // Newest is at top — scroll to top so latest move is always visible
   el.scrollTop=0;
   // Keep mobile history panel in sync if it's open
-  if(isMobile()) syncMobileHistory();
+  if(isMobile()) syncMobileHistory(); // always sync since panel is always visible
 }
 
 // ============================================================

@@ -1668,7 +1668,28 @@ function syncMobileHistory(){
   // Mirror the desktop move history into the mobile panel
   const src=document.getElementById('move-history');
   const dest=document.getElementById('mobile-move-history');
-  if(src&&dest) dest.innerHTML=src.innerHTML;
+  if(!src||!dest) return;
+  dest.innerHTML=src.innerHTML;
+  // Re-attach click handlers — innerHTML copy loses event listeners
+  const destLines=dest.querySelectorAll('.move-line');
+  const srcLines=src.querySelectorAll('.move-line');
+  destLines.forEach((line,i)=>{
+    const srcLine=srcLines[i];
+    if(!srcLine) return;
+    // Find the move index from the source line's click handler via move-entry numbering
+    // Walk up to find move-entry, then find its position
+    const entry=line.closest('.move-entry');
+    if(!entry) return;
+    const allEntries=Array.from(dest.querySelectorAll('.move-entry'));
+    const entryIdx=allEntries.indexOf(entry);
+    // Entries are reversed (newest first), lines within each entry are white then black
+    const totalEntries=allEntries.length;
+    const forwardEntryIdx=totalEntries-1-entryIdx;
+    const lineIdx=Array.from(entry.querySelectorAll('.move-line')).indexOf(line);
+    const moveIdx=forwardEntryIdx*2+lineIdx;
+    line.style.cursor='pointer';
+    line.onclick=()=>replayMove(moveIdx);
+  });
 }
 
 function showRules(){document.getElementById('rules-modal').classList.remove('hidden');}

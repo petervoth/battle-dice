@@ -934,7 +934,7 @@ body.replay-mode #playback-bar{
   </div>
 
   <!-- 2D BOARD -->
-  <div id="board-outer" style="position:relative;">
+  <div id="board-outer" style="position:relative;" onclick="if(replayIndex!==null&&!fullReplayMode) dismissReplay();">
     <div id="board"></div>
     <div id="replay-overlay"></div>
     <svg id="replay-arrow-svg" viewBox="0 0 522 522" preserveAspectRatio="none"></svg>

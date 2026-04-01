@@ -420,13 +420,14 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
     display:none;
   }
 
-  /* Side panel (INFO) — always visible, left half below board, reaches bottom */
+  /* Side panel (INFO) — always visible, RIGHT half below board, reaches bottom */
   #side-panel{
     display:flex !important;
     position:fixed;
     top:calc(100vw + 36px);
     bottom:0;
-    left:0;
+    right:0;
+    left:auto;
     width:50%;
     z-index:190;
     flex-direction:column;
@@ -434,7 +435,7 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
     padding:10px 8px;
     background:var(--panel-bg);
     border-top:1px solid rgba(200,160,60,.2);
-    border-right:1px solid rgba(200,160,60,.15);
+    border-left:1px solid rgba(200,160,60,.15);
     box-sizing:border-box;
     overflow-y:auto;
   }
@@ -444,20 +445,31 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
   #side-panel #d3wrap{width:100%;display:flex;justify-content:center;}
   #side-panel #mode-badge{width:100%;text-align:center;}
 
-  /* Mobile history panel — always visible, right half below board, reaches bottom */
+  /* Mobile history panel — always visible, LEFT half below board, reaches bottom */
   #mobile-history-panel{
     display:block !important;
     position:fixed;
     top:calc(100vw + 36px);
     bottom:0;
-    right:0;
+    left:0;
+    right:auto;
     width:50%;
     z-index:190;
     background:var(--panel-bg);
     border-top:1px solid rgba(200,160,60,.2);
     padding:10px 8px;
     box-sizing:border-box;
+    overflow:hidden;
+    display:flex !important;
+    flex-direction:column;
+  }
+  #mobile-move-history{
+    flex:1;
     overflow-y:auto;
+    overflow-x:hidden;
+    min-height:0;
+    scrollbar-width:thin;
+    scrollbar-color:rgba(200,160,60,.3) transparent;
   }
   #mobile-history-panel h3{
     font-family:'Playfair Display',serif;font-size:.75rem;
@@ -541,7 +553,8 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
   }
   body.replay-mode #side-panel{ display:none !important; }
   body.replay-mode #mobile-history-panel{
-    display:block !important;
+    display:flex !important;
+    flex-direction:column !important;
     position:fixed !important;
     top:calc(100vw + 36px + 175px) !important;
     bottom:0 !important;
@@ -550,12 +563,50 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
     width:100% !important;
     z-index:190 !important;
     border-top:1px solid rgba(200,160,60,.2) !important;
+    padding:10px 8px !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+  }
+  body.replay-mode #mobile-history-panel #mobile-move-history{
+    flex:1 !important;
+    overflow-y:auto !important;
+    min-height:0 !important;
   }
   body.replay-mode #history-panel{ display:none !important; }
   /* Stack playback controls vertically on mobile */
   body.replay-mode #playback-controls{ flex-wrap:wrap; justify-content:center; }
   body.replay-mode #playback-speed-row{ flex-wrap:wrap; justify-content:center; gap:4px; }
   body.replay-mode #pb-exit{ position:static; margin-left:0; width:100% !important; margin-top:4px; }
+  /* Fate cards on mobile — fixed at bottom of left (history) column */
+  body.cards-active #card-tray.visible{
+    display:grid !important;
+    position:fixed !important;
+    bottom:0 !important;
+    left:0 !important;
+    right:auto !important;
+    width:50% !important;
+    z-index:195 !important;
+    grid-template-columns:1fr !important;
+    gap:3px !important;
+    padding:6px 8px !important;
+    background:var(--panel-bg) !important;
+    border-top:1px solid rgba(200,160,60,.3) !important;
+    box-sizing:border-box !important;
+    margin-top:0 !important;
+  }
+  /* Compact card sizing on mobile */
+  body.cards-active .fate-card{
+    min-height:40px !important;
+    padding:4px 6px !important;
+    gap:6px !important;
+  }
+  body.cards-active .fate-card-icon{ font-size:1.2rem !important; width:22px !important; }
+  body.cards-active .fate-card-name{ font-size:.68rem !important; }
+  body.cards-active .fate-card-desc{ font-size:.58rem !important; }
+  /* Shrink history panel to stop above card tray when cards active */
+  body.cards-active #mobile-history-panel{
+    bottom:var(--card-tray-h, 160px) !important;
+  }
   .modal-box{max-width:calc(100vw - 24px);padding:16px 14px;max-height:90vh;overflow-y:auto;}
   #obox{padding:18px 16px;max-width:calc(100vw - 32px);}
 
@@ -634,9 +685,12 @@ body[data-theme='white'] #mode-badge,body[data-theme='white'] #status{color:rgba
   display:none;
   flex-shrink:0;
   padding:6px 4px 4px;
-  width:100%;
+  width:186px;
   border-top:1px solid rgba(200,160,60,.2);
   margin-top:4px;
+  grid-column:1;
+  grid-row:2;
+  align-self:end;
 }
 #card-tray.visible{
   display:grid;
@@ -952,9 +1006,10 @@ body.replay-mode #playback-bar{
       <h3>Move History</h3>
       <div id="move-history"></div>
     </div>
-    <!-- FATE CARDS TRAY — anchored to bottom of left column -->
-    <div id="card-tray"></div>
   </div>
+
+  <!-- FATE CARDS TRAY — direct child of game-container so mobile can independently position it -->
+  <div id="card-tray"></div>
 
   <!-- 2D BOARD -->
   <div id="board-outer" style="position:relative;" onclick="if(replayIndex!==null&&!fullReplayMode) dismissReplay();">
@@ -4374,6 +4429,7 @@ function renderCardTray(){
     tray.style.display='none';
     tray.classList.remove('visible');
     document.body.classList.remove('cards-active');
+    document.documentElement.style.setProperty('--card-tray-h','0px');
     return;
   }
   tray.style.display='';
@@ -4396,6 +4452,13 @@ function renderCardTray(){
     }
     tray.appendChild(el);
   });
+  // On mobile, measure the tray height and set CSS variable so history panel stops above it
+  if(window.innerWidth<=768){
+    requestAnimationFrame(()=>{
+      const h=tray.offsetHeight;
+      document.documentElement.style.setProperty('--card-tray-h', h+'px');
+    });
+  }
 }
 
 function activateFateCard(idx){
@@ -6687,6 +6750,7 @@ function startFullReplay(){
 
   // Render the full move history list so all moves are visible during replay
   renderHistory();
+  if(isMobile()) syncMobileHistory();
 
   renderReplayStep(false); // no animation at step 0
   updatePlaybackUI();
@@ -6836,22 +6900,29 @@ function highlightReplayHistoryEntry(moveIdx){
   }
   const forwardIdx=Math.floor((realMoveCount-1)/2);
 
-  const entries=document.querySelectorAll('.move-entry');
-  const totalEntries=entries.length;
-  const reversedIdx=totalEntries-1-forwardIdx;
-  const entryEl=entries[reversedIdx];
-  if(entryEl){
-    entryEl.classList.add('replaying');
-    const container=document.getElementById('move-history');
-    if(container){
-      const entryTop=entryEl.offsetTop;
+  // Highlight in both desktop and mobile history panels
+  ['move-history','mobile-move-history'].forEach(containerId=>{
+    const container=document.getElementById(containerId);
+    if(!container) return;
+    const entries=container.querySelectorAll('.move-entry');
+    const totalEntries=entries.length;
+    const reversedIdx=totalEntries-1-forwardIdx;
+    const entryEl=entries[reversedIdx];
+    if(entryEl){
+      entryEl.classList.add('replaying');
+      const containerRect=container.getBoundingClientRect();
+      const entryRect=entryEl.getBoundingClientRect();
+      const entryTop=entryRect.top-containerRect.top+container.scrollTop;
       const entryBottom=entryTop+entryEl.offsetHeight;
       const visTop=container.scrollTop;
       const visBottom=visTop+container.clientHeight;
-      if(entryTop<visTop) container.scrollTop=entryTop-4;
-      else if(entryBottom>visBottom) container.scrollTop=entryBottom-container.clientHeight+4;
+      if(entryTop<visTop){
+        container.scrollTop=Math.max(0,entryTop-6);
+      } else if(entryBottom>visBottom){
+        container.scrollTop=entryBottom-container.clientHeight+6;
+      }
     }
-  }
+  });
 }
 
 function updatePlaybackUI(){

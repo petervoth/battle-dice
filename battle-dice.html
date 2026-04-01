@@ -985,11 +985,6 @@ body.replay-mode #playback-bar{
       <div id="d3hint">Click any die · Drag to spin</div>
     </div>
 
-    <button id="btn-outcomes" onclick="toggleOutcomes()">⚄ Show Outcomes</button>
-    <button id="btn-draw" onclick="offerDraw()" style="display:none;">🤝 Offer Draw</button>
-    <button onclick="confirmQuitToMenu()">☰ Main Menu</button>
-    <button id="sound-toggle-btn" onclick="toggleSound()" style="font-size:1rem;">🔊</button>
-
     <div class="ibox">
       <h3>Captured by White</h3>
       <div class="cap-area" id="cap-white"></div>
@@ -998,6 +993,11 @@ body.replay-mode #playback-bar{
       <h3>Captured by Black</h3>
       <div class="cap-area" id="cap-black"></div>
     </div>
+
+    <button id="btn-outcomes" onclick="toggleOutcomes()">⚄ Show Outcomes</button>
+    <button id="btn-draw" onclick="offerDraw()" style="display:none;">🤝 Offer Draw</button>
+    <button id="sound-toggle-btn" onclick="toggleSound()" style="font-size:1rem;">🔊</button>
+    <button onclick="confirmQuitToMenu()">☰ Main Menu</button>
   </div>
 </div>
 

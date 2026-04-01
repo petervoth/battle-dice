@@ -500,12 +500,14 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
   /* Push page content above the fixed tab bar */
   body{padding-bottom:56px;}
 
-  /* Mobile history panel — fills full screen above tab bar */
+  /* Mobile history panel — fills space below board down to tab bar */
   #mobile-history-panel{
     display:none;
     position:fixed;
-    top:0;left:0;right:0;
     bottom:56px;
+    left:0;
+    right:0;
+    top:calc(100vw + 20px); /* below the board (board = 100vw square + h1 + padding) */
     z-index:190;
     background:var(--panel-bg);
     border-top:1px solid rgba(200,160,60,.2);

@@ -420,12 +420,12 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
     display:none;
   }
 
-  /* Side panel (INFO) — always visible, left half below board */
+  /* Side panel (INFO) — always visible, left half below board, reaches bottom */
   #side-panel{
     display:flex !important;
     position:fixed;
     top:calc(100vw + 36px);
-    bottom:56px;
+    bottom:0;
     left:0;
     width:50%;
     z-index:190;
@@ -444,12 +444,12 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
   #side-panel #d3wrap{width:100%;display:flex;justify-content:center;}
   #side-panel #mode-badge{width:100%;text-align:center;}
 
-  /* Mobile history panel — always visible, right half below board */
+  /* Mobile history panel — always visible, right half below board, reaches bottom */
   #mobile-history-panel{
     display:block !important;
     position:fixed;
     top:calc(100vw + 36px);
-    bottom:56px;
+    bottom:0;
     right:0;
     width:50%;
     z-index:190;
@@ -464,47 +464,14 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
     letter-spacing:.1em;text-transform:uppercase;color:var(--gold);
     border-bottom:1px solid rgba(200,160,60,.2);padding-bottom:4px;margin-bottom:6px;
   }
-  #mobile-tab-bar{
-    display:flex;
-    position:fixed;
-    bottom:0;left:0;right:0;
-    z-index:200;
-    gap:0;
-    background:rgba(10,20,12,.97);
-    border-top:1px solid rgba(200,160,60,.25);
-    border-radius:0;
-    overflow:hidden;
-    height:56px;
-  }
-  .mobile-tab{
-    flex:1;
-    padding:8px 4px;
-    font-size:.7rem;
-    font-family:'Crimson Text',serif;
-    text-align:center;
-    color:rgba(245,230,200,.5);
-    cursor:pointer;
-    border:none;
-    background:transparent;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:2px;
-    transition:all .15s;
-    letter-spacing:.03em;
-  }
-  .mobile-tab .tab-icon{font-size:1.1rem;line-height:1;}
-  .mobile-tab.active{background:rgba(200,160,60,.12);color:var(--gold-light);}
-  .mobile-tab:active{background:rgba(200,160,60,.2);}
 
-  /* Push page content above the fixed tab bar */
-  body{padding-bottom:56px;}
+  /* Mobile tab bar — hidden, Menu is in INFO panel */
+  #mobile-tab-bar{ display:none !important; }
 
-  /* Full fixed layout on mobile — no scrolling, everything fits */
+  /* Full fixed layout on mobile */
   body{
     overflow:hidden;
     padding:0;
-    padding-bottom:56px;
   }
 
   h1{font-size:.85rem;padding:4px 0 2px;}
@@ -514,11 +481,11 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
     grid-template-rows:auto 1fr;
     gap:0;
     padding:0;
-    height:calc(100vh - 56px);
+    height:100vh;
     overflow:hidden;
   }
 
-  /* Board fills full width, sized to leave room for history below */
+  /* Board fills full width */
   #board-outer{
     grid-column:1;
     grid-row:1;
@@ -974,12 +941,7 @@ body.replay-mode #playback-bar{
   </div>
 <div id="cinematic-vignette"></div>
 
-  <!-- MOBILE TAB BAR (hidden on desktop) — single MENU button -->
-  <div id="mobile-tab-bar">
-    <button class="mobile-tab active" id="tab-menu" onclick="confirmQuitToMenu()" style="flex:1;">
-      <span class="tab-icon">☰</span>Menu
-    </button>
-  </div>
+  <!-- MOBILE TAB BAR (hidden on desktop) — removed, Menu is in INFO panel -->
 
   <!-- MOBILE HISTORY PANEL (hidden on desktop) -->
   <div id="mobile-history-panel">
@@ -1025,6 +987,7 @@ body.replay-mode #playback-bar{
 
     <button id="btn-outcomes" onclick="toggleOutcomes()">⚄ Show Outcomes</button>
     <button id="btn-draw" onclick="offerDraw()" style="display:none;">🤝 Offer Draw</button>
+    <button onclick="confirmQuitToMenu()">☰ Main Menu</button>
     <button id="sound-toggle-btn" onclick="toggleSound()" style="font-size:1rem;">🔊</button>
 
     <div class="ibox">
@@ -3023,25 +2986,61 @@ function updateInspector(ori){
 let inspRx=-25,inspRy=20,inspDrag=false,inspLx=0,inspLy=0,inspVx=0,inspVy=0,inspAid=null;
 const inspApply=()=>{document.getElementById('d3').style.transform=`rotateX(${inspRx}deg) rotateY(${inspRy}deg)`;};
 
+// Arcball: map 2D screen point to point on unit sphere
+function arcballPoint(x,y,rect){
+  const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+  const r=Math.min(rect.width,rect.height)/2;
+  const nx=(x-cx)/r, ny=(y-cy)/r;
+  const lenSq=nx*nx+ny*ny;
+  if(lenSq<=1) return[nx,-ny,Math.sqrt(1-lenSq)];
+  const len=Math.sqrt(lenSq);
+  return[nx/len,-ny/len,0];
+}
+
 (function(){
   buildInspectorFacePips();
-  // Default: show a standard die (top=1,front=2,right=3)
   updateInspector({top:1,front:2,right:3});
 
   const wrap=document.getElementById('d3wrap');
-  function start(x,y){inspDrag=true;inspLx=x;inspLy=y;inspVx=0;inspVy=0;if(inspAid){cancelAnimationFrame(inspAid);inspAid=null;}}
-  function mv(x,y){
-    if(!inspDrag)return;
-    const dx=x-inspLx,dy=y-inspLy;
-    inspRy+=dx*.65;inspRx-=dy*.65;
-    inspVx=dx;inspVy=dy;inspLx=x;inspLy=y;inspApply();
+  let arcStart=null, wrapRect=null;
+
+  function start(x,y){
+    inspDrag=true;
+    wrapRect=wrap.getBoundingClientRect();
+    arcStart=arcballPoint(x,y,wrapRect);
+    inspLx=x;inspLy=y;inspVx=0;inspVy=0;
+    if(inspAid){cancelAnimationFrame(inspAid);inspAid=null;}
   }
+
+  function mv(x,y){
+    if(!inspDrag||!arcStart)return;
+    const arcEnd=arcballPoint(x,y,wrapRect);
+    // Cross product gives rotation axis in screen space
+    const ax=arcStart[1]*arcEnd[2]-arcStart[2]*arcEnd[1];
+    const ay=arcStart[2]*arcEnd[0]-arcStart[0]*arcEnd[2];
+    // Map axis to rotateX / rotateY increments
+    const dx=x-inspLx, dy=y-inspLy;
+    inspRy+=dx*.65;
+    inspRx-=dy*.65;
+    // Clamp X so die doesn't flip upside down completely
+    inspRx=Math.max(-89,Math.min(89,inspRx));
+    inspVx=dx;inspVy=dy;inspLx=x;inspLy=y;
+    arcStart=arcEnd;
+    inspApply();
+  }
+
   function end(){
-    inspDrag=false;
-    function c(){inspVx*=.91;inspVy*=.91;inspRy+=inspVx*.45;inspRx-=inspVy*.45;inspApply();
-      if(Math.abs(inspVx)>.04||Math.abs(inspVy)>.04)inspAid=requestAnimationFrame(c);}
+    inspDrag=false;arcStart=null;
+    function c(){
+      inspVx*=.88;inspVy*=.88;
+      inspRy+=inspVx*.45;inspRx-=inspVy*.45;
+      inspRx=Math.max(-89,Math.min(89,inspRx));
+      inspApply();
+      if(Math.abs(inspVx)>.03||Math.abs(inspVy)>.03)inspAid=requestAnimationFrame(c);
+    }
     inspAid=requestAnimationFrame(c);
   }
+
   wrap.addEventListener('mousedown',e=>{e.preventDefault();start(e.clientX,e.clientY);});
   window.addEventListener('mousemove',e=>{mv(e.clientX,e.clientY);});
   window.addEventListener('mouseup',end);

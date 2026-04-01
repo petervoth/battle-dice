@@ -415,33 +415,6 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
 /* ========== MOBILE OPTIMISATION ========== */
 @media (max-width: 768px) {
 
-  h1{font-size:1rem;padding:6px 0 4px;}
-
-  #game-container{
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    gap:6px;
-    padding:0 4px;
-  }
-
-  /* Board fills full width */
-  #board-outer{
-    grid-column:1;
-    grid-row:1;
-    justify-self:center;
-    width:calc(100vw - 16px);
-    padding:6px;
-    box-sizing:border-box;
-  }
-  #board{
-    height:calc(100vw - 28px);
-    width:calc(100vw - 28px);
-    max-height:calc(100vw - 28px);
-    max-width:calc(100vw - 28px);
-    min-height:unset;
-    min-width:unset;
-  }
-
   /* History panel hidden on mobile — accessible via tab */
   #history-panel{
     display:none;
@@ -500,18 +473,55 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
   /* Push page content above the fixed tab bar */
   body{padding-bottom:56px;}
 
-  /* Mobile history panel — fills space below board down to tab bar */
+  /* Full fixed layout on mobile — no scrolling, everything fits */
+  body{
+    overflow:hidden;
+    padding:0;
+    padding-bottom:56px;
+  }
+
+  h1{font-size:.85rem;padding:4px 0 2px;}
+
+  #game-container{
+    grid-template-columns:1fr;
+    grid-template-rows:auto 1fr;
+    gap:0;
+    padding:0;
+    height:calc(100vh - 56px);
+    overflow:hidden;
+  }
+
+  /* Board fills full width, sized to leave room for history below */
+  #board-outer{
+    grid-column:1;
+    grid-row:1;
+    justify-self:center;
+    width:calc(100vw - 16px);
+    padding:6px;
+    box-sizing:border-box;
+    flex-shrink:0;
+  }
+  #board{
+    height:calc(100vw - 28px);
+    width:calc(100vw - 28px);
+    max-height:calc(100vw - 28px);
+    max-width:calc(100vw - 28px);
+    min-height:unset;
+    min-width:unset;
+  }
+
+  /* Mobile history panel — sits below board, above tab bar */
   #mobile-history-panel{
     display:none;
     position:fixed;
+    top:calc(100vw + 36px); /* board height + h1 + padding */
     bottom:56px;
     left:0;
     right:0;
-    top:calc(100vw + 20px); /* below the board (board = 100vw square + h1 + padding) */
     z-index:190;
     background:var(--panel-bg);
     border-top:1px solid rgba(200,160,60,.2);
-    padding:12px;
+    padding:10px 12px;
     box-sizing:border-box;
     overflow-y:auto;
   }

@@ -415,9 +415,15 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
 /* ========== MOBILE OPTIMISATION ========== */
 @media (max-width: 768px) {
 
-  /* History panel hidden on mobile — accessible via tab */
+  /* History panel hidden on mobile — use visibility so fixed children can still render */
   #history-panel{
-    display:none;
+    visibility:hidden;
+    position:fixed;
+    width:0;
+    height:0;
+    overflow:visible;
+    padding:0;
+    margin:0;
   }
 
   /* Side panel (INFO) — always visible, RIGHT half below board, reaches bottom */
@@ -577,15 +583,11 @@ button.active-btn{background:rgba(200,160,60,.32);box-shadow:0 0 8px rgba(200,16
   body.replay-mode #playback-controls{ flex-wrap:wrap; justify-content:center; }
   body.replay-mode #playback-speed-row{ flex-wrap:wrap; justify-content:center; gap:4px; }
   body.replay-mode #pb-exit{ position:static; margin-left:0; width:100% !important; margin-top:4px; }
-  /* Fate cards on mobile — escape hidden history-panel using fixed positioning */
-  #card-tray{
-    position:fixed !important;
-    display:none;
-  }
   /* Fate cards on mobile — fixed at bottom of left (history) column */
   body.cards-active #card-tray.visible{
     display:grid !important;
     position:fixed !important;
+    visibility:visible !important;
     bottom:0 !important;
     left:0 !important;
     right:auto !important;
@@ -690,12 +692,9 @@ body[data-theme='white'] #mode-badge,body[data-theme='white'] #status{color:rgba
   display:none;
   flex-shrink:0;
   padding:6px 4px 4px;
-  width:186px;
+  width:100%;
   border-top:1px solid rgba(200,160,60,.2);
   margin-top:4px;
-  grid-column:1;
-  grid-row:1;
-  align-self:end;
 }
 #card-tray.visible{
   display:grid;
@@ -1011,7 +1010,6 @@ body.replay-mode #playback-bar{
       <h3>Move History</h3>
       <div id="move-history"></div>
     </div>
-    <!-- FATE CARDS TRAY — anchored to bottom of left column on desktop -->
     <div id="card-tray"></div>
   </div>
 
